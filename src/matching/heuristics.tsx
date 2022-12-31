@@ -1,22 +1,23 @@
-type Match = [[string, string], [string, string]];
-type Round = {
+export type PlayerId = string;
+export type Match = [[PlayerId, PlayerId], [PlayerId, PlayerId]];
+export type Round = {
   matches: Array<Match>;
-  sitOuts: Array<Player>;
+  sitOuts: Array<PlayerId>;
 };
-type Player = {
+export type Player = {
   name: string;
-  id: number;
+  id: PlayerId;
 };
-type PlayerWithHeuristics = Player & { heuristics: PlayerHeuristics };
-type PlayerHeuristics = {
-  playedWithCount: { [name: string]: number | undefined };
-  roundsSincePlayedWith: { [name: string]: number | undefined };
-  playedAgainstCount: { [name: string]: number | undefined };
-  roundsSincePlayedAgainst: { [name: string]: number | undefined };
+export type PlayerWithHeuristics = Player & { heuristics: PlayerHeuristics };
+export type PlayerHeuristics = {
+  playedWithCount: { [playerId: PlayerId]: number | undefined };
+  roundsSincePlayedWith: { [playerId: PlayerId]: number | undefined };
+  playedAgainstCount: { [playerId: PlayerId]: number | undefined };
+  roundsSincePlayedAgainst: { [playerId: PlayerId]: number | undefined };
   roundsSinceSitOut: number;
 };
-type Team = [Player, Player];
-type TeamWithHeuristics = [PlayerWithHeuristics, PlayerWithHeuristics];
+export type Team = [Player, Player];
+export type TeamWithHeuristics = [PlayerWithHeuristics, PlayerWithHeuristics];
 
 function roundsSincePlayedWith(player: PlayerWithHeuristics, partner: Player) {
   return player.heuristics.roundsSincePlayedWith[partner.id] || Infinity;
@@ -98,4 +99,75 @@ const sortTeamCompatibility =
     return 0;
   };
 
-export {};
+const calculateHeuristics = (rounds: Round[]) => {
+  const heuristics: Record<string, PlayerHeuristics> = {};
+
+  /**
+   * Set a heuristic, populating data types if it's the first time any heuristic is being set.
+   *
+   * Ignores worse values.
+   */
+  const setHeuristic = (
+    playerId: PlayerId,
+    heuristic: keyof PlayerHeuristics,
+    value: number,
+    subjectId: PlayerId
+  ) => {
+    const playerHeuristic = heuristics[playerId] || {
+      playedWithCount: {},
+      roundsSincePlayedWith: {},
+      playedAgainstCount: {},
+      roundsSincePlayedAgainst: {},
+      roundsSinceSitOut: Infinity,
+    };
+    if (heuristic === "roundsSinceSitOut") {
+      if (playerHeuristic.roundsSinceSitOut > value) {
+        playerHeuristic.roundsSinceSitOut = value;
+      }
+    }
+    if (heuristic === "playedWithCount" || heuristic === "playedAgainstCount") {
+      playerHeuristic[heuristic][subjectId] =
+        (playerHeuristic[heuristic][subjectId] ?? 0) + 1;
+    }
+    if (
+      heuristic === "roundsSincePlayedAgainst" ||
+      heuristic === "roundsSincePlayedWith"
+    ) {
+      const sincePlayedCount =
+        playerHeuristic[heuristic][subjectId] ?? Infinity;
+      if (value < sincePlayedCount) {
+        playerHeuristic[heuristic][subjectId] = value;
+      }
+    }
+    heuristics[playerId] = playerHeuristic;
+  };
+
+  for (let index = 0; index < rounds.length; index += 1) {
+    const { matches, sitOuts } = rounds[rounds.length - index - 1];
+    const roundsAgo = index + 1;
+    sitOuts.forEach((playerId) => {
+      setHeuristic(playerId, "roundsSinceSitOut", roundsAgo, playerId);
+    });
+    matches.forEach((teams) => {
+      teams.forEach(([player, partner]) => {
+        setHeuristic(player, "playedWithCount", 1, partner);
+        setHeuristic(partner, "playedWithCount", 1, player);
+        setHeuristic(player, "roundsSincePlayedWith", roundsAgo, partner);
+        setHeuristic(partner, "roundsSincePlayedWith", roundsAgo, player);
+      });
+      const [teamA, teamB] = teams;
+      teamA.forEach((aPlayer) => {
+        teamB.forEach((bPlayer) => {
+          setHeuristic(aPlayer, "playedAgainstCount", 1, bPlayer);
+          setHeuristic(bPlayer, "playedAgainstCount", 1, aPlayer);
+          setHeuristic(aPlayer, "roundsSincePlayedAgainst", roundsAgo, bPlayer);
+          setHeuristic(bPlayer, "roundsSincePlayedAgainst", roundsAgo, aPlayer);
+        });
+      });
+    });
+  }
+
+  return heuristics;
+};
+
+export { calculateHeuristics };
