@@ -11,37 +11,77 @@ export type Player = {
   name: string;
   id: PlayerId;
 };
+export type PlayerRecords = {
+  [playerId: PlayerId]: number;
+  max: number;
+  min: number;
+};
 export type PlayerHeuristics = {
-  playedWithCount: { [playerId: PlayerId]: number | undefined };
-  roundsSincePlayedWith: { [playerId: PlayerId]: number | undefined };
-  playedAgainstCount: { [playerId: PlayerId]: number | undefined };
-  roundsSincePlayedAgainst: { [playerId: PlayerId]: number | undefined };
+  playedWithCount: PlayerRecords;
+  roundsSincePlayedWith: PlayerRecords;
+  playedAgainstCount: PlayerRecords;
+  roundsSincePlayedAgainst: PlayerRecords;
   roundsSinceSitOut: number;
 };
 export type PlayerHeuristicsDictionary = Record<string, PlayerHeuristics>;
 export type Team = [PlayerId, PlayerId];
 
-const getDefaultHeuristics = (): PlayerHeuristics => ({
-  playedWithCount: {},
-  roundsSincePlayedWith: {},
-  playedAgainstCount: {},
-  roundsSincePlayedAgainst: {},
-  roundsSinceSitOut: Infinity,
-});
+// Instead of using Infinity, use a high number so that comparative values can be calculated.
+export const INFINITY = 9999;
+
+/**
+ * Populate default player scores for each person.
+ */
+const getDefaultPlayerRecords = (players: Player[], currentPlayer: Player) => {
+  const { highDefaults, lowDefaults } = players.reduce(
+    (
+      result: {
+        highDefaults: Record<PlayerId, number>;
+        lowDefaults: Record<PlayerId, number>;
+      },
+      player
+    ) => {
+      if (player.id === currentPlayer.id) return result;
+      result.highDefaults[player.id] = INFINITY;
+      result.lowDefaults[player.id] = 0;
+      return result;
+    },
+    { highDefaults: {}, lowDefaults: {} }
+  );
+  return (high?: boolean) =>
+    Object.assign(
+      { min: high ? INFINITY : 0, max: high ? INFINITY : 0 },
+      high ? highDefaults : lowDefaults
+    );
+};
+
+const getDefaultHeuristics = (
+  players: Player[],
+  currentPlayer: Player
+): PlayerHeuristics => {
+  const defaultRecords = getDefaultPlayerRecords(players, currentPlayer);
+  return {
+    playedWithCount: defaultRecords(),
+    roundsSincePlayedWith: defaultRecords(true),
+    playedAgainstCount: defaultRecords(),
+    roundsSincePlayedAgainst: defaultRecords(true),
+    roundsSinceSitOut: INFINITY,
+  };
+};
 
 function roundsSincePlayedWith(
   player: PlayerId,
   heuristics: PlayerHeuristicsDictionary,
   partner: PlayerId
 ) {
-  return heuristics[player].roundsSincePlayedWith[partner] || Infinity;
+  return heuristics[player].roundsSincePlayedWith[partner] || INFINITY;
 }
 function roundsSincePlayedAgainst(
   player: PlayerId,
   heuristics: PlayerHeuristicsDictionary,
   partner: PlayerId
 ) {
-  return heuristics[player].roundsSincePlayedAgainst[partner] || Infinity;
+  return heuristics[player].roundsSincePlayedAgainst[partner] || INFINITY;
 }
 
 /**
@@ -52,26 +92,67 @@ function roundsSincePlayedAgainst(
 const sortPartnerCompatibility =
   (player: Player, heuristics: PlayerHeuristicsDictionary) =>
   (a: Player, b: Player) => {
-    const aPlayedWith = roundsSincePlayedWith(player.id, heuristics, a.id);
-    const bPlayedWith = roundsSincePlayedWith(player.id, heuristics, b.id);
-    if (aPlayedWith > bPlayedWith) return -1;
-    if (bPlayedWith > aPlayedWith) return 1;
-
-    const aPlayedAgainst = roundsSincePlayedAgainst(
-      player.id,
-      heuristics,
-      a.id
-    );
-    const bPlayedAgainst = roundsSincePlayedAgainst(
-      player.id,
-      heuristics,
-      b.id
-    );
-    if (aPlayedAgainst > bPlayedAgainst) return -1;
-    if (bPlayedAgainst > aPlayedAgainst) return 1;
-
-    return 0;
+    const aScore = partnerScore(player.id, heuristics, a.id);
+    const bScore = partnerScore(player.id, heuristics, b.id);
+    return bScore - aScore;
   };
+
+const partnerScore = (
+  player: PlayerId,
+  heuristics: PlayerHeuristicsDictionary,
+  partner: PlayerId
+) => {
+  // I want to partner most with people I haven't partnered with for a long time.
+  // I want to play with people I haven't played with recently.
+  // I don't want to partner with people over and over again.
+  const {
+    min: minSinceAgainst,
+    max: maxSinceAgainst,
+    [partner]: roundsSinceAgainst,
+  } = heuristics[player].roundsSincePlayedAgainst;
+  const { min: minSinceWith, [partner]: roundsSinceWith } =
+    heuristics[player].roundsSincePlayedWith;
+  const { min: minPlayedCount, [partner]: playedWithCount } =
+    heuristics[player].playedWithCount;
+
+  const playedWithOffset = playedWithCount - minPlayedCount;
+
+  const playedWithScore =
+    ((roundsSinceWith - minSinceWith) / (playedWithOffset + 1)) *
+    // Apply up to 25% reduction if we played against this person recently.
+    ((roundsSinceAgainst / (maxSinceAgainst - minSinceAgainst) + 3) / 4);
+
+  return playedWithScore;
+};
+
+const opponentScore = (
+  team: Team,
+  heuristics: PlayerHeuristicsDictionary,
+  opponent: Team
+) => {
+  // Ideally you want to play against a team with people that you haven't seen (partner or opponent) for the longest.
+  const calculateDesirability = (player: PlayerId, target: PlayerId) => {
+    const { min: minSinceAgainst, [target]: roundsSinceAgainst } =
+      heuristics[player].roundsSincePlayedAgainst;
+    const { min: minSinceWith, [target]: roundsSinceWith } =
+      heuristics[player].roundsSincePlayedWith;
+    // Normalize with min to account for sit outs.
+    // Square result to strongly favor high numbers.
+    return (
+      Math.pow(roundsSinceAgainst - minSinceAgainst, 2) +
+      Math.pow(roundsSinceWith - minSinceWith, 1.5)
+    );
+  };
+
+  return team.reduce((score, player) => {
+    return (
+      score +
+      opponent.reduce((result, target) => {
+        return result + calculateDesirability(player, target);
+      }, 0)
+    );
+  }, 0);
+};
 
 const averageRoundsSincePlayedAgainst = (
   [player1, player2]: Team,
@@ -107,18 +188,19 @@ const averageRoundsSincePlayedWith = (
 const sortTeamCompatibility =
   (team: Team, heuristics: PlayerHeuristicsDictionary) =>
   (a: Team, b: Team) => {
-    const teamAScore = averageRoundsSincePlayedAgainst(team, heuristics, a);
-    const teamBScore = averageRoundsSincePlayedAgainst(team, heuristics, b);
-    if (teamAScore > teamBScore) return -1;
-    if (teamBScore > teamAScore) return 1;
-
-    const teamAScore2 = averageRoundsSincePlayedWith(team, heuristics, a);
-    const teamBScore2 = averageRoundsSincePlayedWith(team, heuristics, b);
-    if (teamAScore2 > teamBScore2) return -1;
-    if (teamBScore2 > teamAScore2) return 1;
-
-    return 0;
+    const teamAScore = opponentScore(team, heuristics, a);
+    const teamBScore = opponentScore(team, heuristics, b);
+    return teamBScore - teamAScore;
   };
+
+const minMaxHeuristicTypes: Array<
+  keyof Omit<PlayerHeuristics, "roundsSinceSitOut">
+> = [
+  "playedWithCount",
+  "roundsSincePlayedWith",
+  "playedAgainstCount",
+  "roundsSincePlayedAgainst",
+];
 
 /**
  * Get stats about who has played with and against who, and how long since people have sat out.
@@ -126,7 +208,7 @@ const sortTeamCompatibility =
 const getHeuristics = (rounds: Round[], players: Player[]) => {
   const heuristics: PlayerHeuristicsDictionary = players.reduce(
     (result: PlayerHeuristicsDictionary, currentPlayer) => {
-      result[currentPlayer.id] = getDefaultHeuristics();
+      result[currentPlayer.id] = getDefaultHeuristics(players, currentPlayer);
       return result;
     },
     {}
@@ -143,7 +225,9 @@ const getHeuristics = (rounds: Round[], players: Player[]) => {
     value: number,
     subjectId: PlayerId
   ) => {
-    const playerHeuristic = heuristics[playerId] || getDefaultHeuristics();
+    const playerHeuristic =
+      heuristics[playerId] ||
+      getDefaultHeuristics(players, { id: playerId, name: "" });
     if (heuristic === "roundsSinceSitOut") {
       if (playerHeuristic.roundsSinceSitOut > value) {
         playerHeuristic.roundsSinceSitOut = value;
@@ -158,7 +242,7 @@ const getHeuristics = (rounds: Round[], players: Player[]) => {
       heuristic === "roundsSincePlayedWith"
     ) {
       const sincePlayedCount =
-        playerHeuristic[heuristic][subjectId] ?? Infinity;
+        playerHeuristic[heuristic][subjectId] ?? INFINITY;
       if (value < sincePlayedCount) {
         playerHeuristic[heuristic][subjectId] = value;
       }
@@ -191,6 +275,24 @@ const getHeuristics = (rounds: Round[], players: Player[]) => {
     });
   }
 
+  // Calculate mins and maxes.
+  players.forEach((player) => {
+    minMaxHeuristicTypes.forEach((heuristic) => {
+      const stats = heuristics[player.id][heuristic];
+      const { min, max } = players.reduce(
+        (result: { min: number; max: number }, target) => {
+          if (target.id === player.id) return result;
+          result.min = Math.min(result.min, stats[target.id] || 0);
+          result.max = Math.max(result.max, stats[target.id] || 0);
+          return result;
+        },
+        { min: INFINITY, max: 0 }
+      );
+      stats.min = min;
+      stats.max = max;
+    });
+  });
+
   return heuristics;
 };
 
@@ -202,6 +304,16 @@ const getPartnerPreferences = (
     result[player.id] = players
       .filter((x) => x.id !== player.id)
       .sort(sortPartnerCompatibility(player, heuristics));
+    console.log(
+      result[player.id]
+        .map(
+          (x) =>
+            `${x.id} (${heuristics[player.id].roundsSincePlayedWith[x.id]}, ${
+              heuristics[player.id].roundsSincePlayedAgainst[x.id]
+            })`
+        )
+        .join(", ")
+    );
     return result;
   }, {});
 };
