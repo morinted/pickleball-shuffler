@@ -97,14 +97,16 @@ const sortPartnerCompatibility =
     return bScore - aScore;
   };
 
+/**
+ * How much do I want a particular partner?
+ *
+ * Most important is how many times I've played with them, then how long since we've partnered, then how long since we've faced off.
+ */
 const partnerScore = (
   player: PlayerId,
   heuristics: PlayerHeuristicsDictionary,
   partner: PlayerId
 ) => {
-  // I want to partner most with people I haven't partnered with for a long time.
-  // I want to play with people I haven't played with recently.
-  // I don't want to partner with people over and over again.
   const {
     min: minSinceAgainst,
     max: maxSinceAgainst,
@@ -125,6 +127,9 @@ const partnerScore = (
   return playedWithScore;
 };
 
+/**
+ * How much do I want to play against a particular opponent?
+ */
 const opponentScore = (
   team: Team,
   heuristics: PlayerHeuristicsDictionary,
@@ -152,37 +157,6 @@ const opponentScore = (
       }, 0)
     );
   }, 0);
-};
-
-const averageRoundsSincePlayedAgainst = (
-  [player1, player2]: Team,
-  heuristics: PlayerHeuristicsDictionary,
-  [a1, a2]: Team
-) => {
-  const player1PlayedAgainstTeamA =
-    roundsSincePlayedAgainst(player1, heuristics, a1) +
-    roundsSincePlayedAgainst(player1, heuristics, a2) / 2;
-  const player2PlayedAgainstTeamB =
-    (roundsSincePlayedAgainst(player2, heuristics, a1) +
-      roundsSincePlayedAgainst(player2, heuristics, a2)) /
-    2;
-  return (player1PlayedAgainstTeamA + player2PlayedAgainstTeamB) / 2;
-};
-
-const averageRoundsSincePlayedWith = (
-  [player1, player2]: Team,
-  heuristics: PlayerHeuristicsDictionary,
-  [a1, a2]: Team
-) => {
-  const player1PlayedWithTeamA =
-    (roundsSincePlayedWith(player1, heuristics, a1) +
-      roundsSincePlayedWith(player1, heuristics, a2)) /
-    2;
-  const player2PlayedWithTeamB =
-    (roundsSincePlayedWith(player2, heuristics, a1) +
-      roundsSincePlayedWith(player2, heuristics, a2)) /
-    2;
-  return (player1PlayedWithTeamA + player2PlayedWithTeamB) / 2;
 };
 
 const sortTeamCompatibility =
@@ -296,6 +270,9 @@ const getHeuristics = (rounds: Round[], players: Player[]) => {
   return heuristics;
 };
 
+/**
+ * Get a ranked list of players that each player would like to partner with.
+ */
 const getPartnerPreferences = (
   players: Player[],
   heuristics: PlayerHeuristicsDictionary
@@ -318,6 +295,9 @@ const getPartnerPreferences = (
   }, {});
 };
 
+/**
+ * Get a ranked list of teams that each team would like to play against.
+ */
 const getTeamPreferences = (
   teams: Array<Team>,
   heuristics: PlayerHeuristicsDictionary
@@ -331,6 +311,9 @@ const getTeamPreferences = (
   }, {});
 };
 
+/**
+ * Choose which players sit out.
+ */
 const getSitOuts = (
   heuristics: PlayerHeuristicsDictionary,
   players: Player[],
@@ -344,6 +327,9 @@ const getSitOuts = (
   return [players.slice(0, sitouts), shuffle(players.slice(sitouts))];
 };
 
+/**
+ * Generate the next round given all previous rounds.
+ */
 const getNextRound = (
   rounds: Round[],
   players: Player[],
@@ -420,11 +406,13 @@ const getNextRound = (
   }
 
   // Convert back to player IDs.
-  const matches: Match[] = matchesByIndex.map(([teamIndexA, teamIndexB]) => {
-    const teamA = teams[parseInt(teamIndexA)];
-    const teamB = teams[parseInt(teamIndexB)];
-    return [teamA.sort(), teamB.sort()].sort(); // Sort for stability.
-  });
+  const matches: Match[] = matchesByIndex.map(
+    ([teamIndexA, teamIndexB]): Match => {
+      const teamA = teams[parseInt(teamIndexA)].sort();
+      const teamB = teams[parseInt(teamIndexB)].sort();
+      return [teamA, teamB].sort() as Match; // Sort for stability.
+    }
+  );
 
   // Return new round.
   return { sitOuts, matches };
