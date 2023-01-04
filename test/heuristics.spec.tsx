@@ -81,4 +81,29 @@ describe("calculateHeuristics()", () => {
     }
     console.log(getHeuristics(rounds, players));
   });
+  test("5 players, 5 games", () => {
+    const players = sampleNames.slice(0, 5).map((name) => ({ name, id: name }));
+    const rounds: Round[] = [];
+    players.forEach(() => {
+      rounds.push(getNextRound(rounds, players, 1));
+    });
+    const uniqueTeams = new Set();
+    const uniqueSits = new Set();
+    rounds.forEach(({ matches, sitOuts }) => {
+      matches.forEach((match) =>
+        match.forEach((team) => uniqueTeams.add(team.toString()))
+      );
+      sitOuts.forEach((sit) => uniqueSits.add(sit));
+    });
+    console.log(
+      rounds.map(
+        (round) =>
+          `${round.matches
+            .map((match) => `${match[0].toString()} vs ${match[1].toString()}`)
+            .toString()}, ${round.sitOuts} out`
+      )
+    );
+    expect(uniqueSits.size).toEqual(5);
+    expect(uniqueTeams.size).toEqual(10);
+  });
 });

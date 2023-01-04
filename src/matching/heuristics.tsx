@@ -28,6 +28,9 @@ export type Team = [PlayerId, PlayerId];
 
 // Instead of using Infinity, use a high number so that comparative values can be calculated.
 export const INFINITY = 9999;
+function isTruthy<X>(x: X | null): x is X {
+  return !!x;
+}
 
 /**
  * Populate default player scores for each person.
@@ -120,9 +123,9 @@ const partnerScore = (
   const playedWithOffset = playedWithCount - minPlayedCount;
 
   const playedWithScore =
-    ((roundsSinceWith - minSinceWith) / (playedWithOffset + 1)) *
-    // Apply up to 25% reduction if we played against this person recently.
-    ((roundsSinceAgainst / (maxSinceAgainst - minSinceAgainst) + 3) / 4);
+    (roundsSinceWith - minSinceWith) / (playedWithOffset + 1); //*
+  // Apply up to 25% reduction if we played against this person recently.
+  //((roundsSinceAgainst / (maxSinceAgainst - minSinceAgainst) + 3) / 4);
 
   return playedWithScore;
 };
@@ -278,19 +281,10 @@ const getPartnerPreferences = (
   heuristics: PlayerHeuristicsDictionary
 ) => {
   return players.reduce((result: Record<PlayerId, Player[]>, player) => {
-    result[player.id] = players
+    // Shuffle to help avoid earlier everyone ranking the same player highly.
+    result[player.id] = shuffle(players)
       .filter((x) => x.id !== player.id)
       .sort(sortPartnerCompatibility(player, heuristics));
-    console.log(
-      result[player.id]
-        .map(
-          (x) =>
-            `${x.id} (${heuristics[player.id].roundsSincePlayedWith[x.id]}, ${
-              heuristics[player.id].roundsSincePlayedAgainst[x.id]
-            })`
-        )
-        .join(", ")
-    );
     return result;
   }, {});
 };
@@ -304,7 +298,7 @@ const getTeamPreferences = (
 ) => {
   return teams.reduce((result: Record<string, Team[]>, team) => {
     const teamString = team.toString();
-    result[teamString] = teams
+    result[teamString] = shuffle(teams)
       .filter((x) => x.toString() !== teamString)
       .sort(sortTeamCompatibility(team, heuristics));
     return result;
@@ -320,11 +314,14 @@ const getSitOuts = (
   courts: number
 ) => {
   const sitouts = players.length - courts * 4;
-  players.sort(
+  const inOrderOfSitout = shuffle(players).sort(
     (a, b) =>
       heuristics[b.id].roundsSinceSitOut - heuristics[a.id].roundsSinceSitOut
   );
-  return [players.slice(0, sitouts), shuffle(players.slice(sitouts))];
+  return [
+    inOrderOfSitout.slice(0, sitouts).sort(),
+    shuffle(inOrderOfSitout.slice(sitouts)),
+  ];
 };
 
 /**
@@ -340,43 +337,83 @@ const getNextRound = (
     throw new Error("infinite loop");
   }
   const heuristics = getHeuristics(rounds, players);
-  /* Decide who sits out. */
-  const [sitoutPlayers, roundPlayers] = getSitOuts(heuristics, players, courts);
 
-  const sitOuts = sitoutPlayers.map((x) => x.id).sort(); // Sort by ID for stable order.
+  const partnerGenerations = Array.from(new Array(10))
+    .map(() => {
+      /* Decide who sits out. */
+      const [sitoutPlayers, roundPlayers] = getSitOuts(
+        heuristics,
+        players,
+        courts
+      );
 
-  /* Make partnerships. */
-  // Get ranked preferences for each player.
-  const partnerPreferences = getPartnerPreferences(roundPlayers, heuristics);
+      const sitOuts = sitoutPlayers.map((x) => x.id).sort(); // Sort by ID for stable order.
 
-  // Convert to indexes.
-  const playerIdToIndex = roundPlayers.reduce(
-    (indexes: Record<string, string>, player, index) => {
-      indexes[player.id] = index.toString();
-      return indexes;
-    },
-    {}
+      /* Make partnerships. */
+      // Get ranked preferences for each player.
+      const partnerPreferences = getPartnerPreferences(
+        roundPlayers,
+        heuristics
+      );
+      // Convert to indexes.
+      const playerIdToIndex = roundPlayers.reduce(
+        (indexes: Record<string, string>, player, index) => {
+          indexes[player.id] = index.toString();
+          return indexes;
+        },
+        {}
+      );
+      const partnerPreferenceMatrix = roundPlayers.map((player) => {
+        return partnerPreferences[player.id].map(
+          (preference) => playerIdToIndex[preference.id]
+        );
+      });
+      let teamsByIndex = null;
+      try {
+        // Apply Irving's algorithm.
+        teamsByIndex = stableRoommateProblem(partnerPreferenceMatrix);
+      } catch (e) {
+        return null;
+      }
+
+      // Convert back to player IDs.
+      const teams: Team[] = teamsByIndex.map(([playerIndex, matchIndex]) => {
+        const player = roundPlayers[parseInt(playerIndex)].id;
+        const match = roundPlayers[parseInt(matchIndex)].id;
+        return [player, match];
+      });
+
+      // Count the number of people who are partnering with someone who is at their max.
+      const score = teams.reduce((result: number, [a, b]) => {
+        const aScore =
+          heuristics[a].playedWithCount[b] === heuristics[a].playedWithCount.max
+            ? 1
+            : 0;
+        const bScore =
+          heuristics[b].playedWithCount[a] === heuristics[b].playedWithCount.max
+            ? 1
+            : 0;
+        return result + aScore + bScore;
+      }, 0);
+
+      return { teams, sitOuts, score };
+    })
+    .filter(isTruthy);
+
+  // Find which generation has the lowest average partnerships.
+  const { teams, sitOuts } = partnerGenerations.reduce(
+    (
+      best: {
+        teams: Team[];
+        sitOuts: string[];
+        score: number;
+      },
+      current
+    ) => {
+      if (best.score < current.score) return best;
+      return current;
+    }
   );
-  const partnerPreferenceMatrix = roundPlayers.map((player) => {
-    return partnerPreferences[player.id].map(
-      (preference) => playerIdToIndex[preference.id]
-    );
-  });
-  let teamsByIndex = null;
-  try {
-    // Apply Irving's algorithm.
-    teamsByIndex = stableRoommateProblem(partnerPreferenceMatrix);
-  } catch (e) {
-    // Retry if there is no stable match.
-    return getNextRound(rounds, players, courts, (attempts || 0) + 1);
-  }
-
-  // Convert back to player IDs.
-  const teams: Team[] = teamsByIndex.map(([playerIndex, matchIndex]) => {
-    const player = roundPlayers[parseInt(playerIndex)].id;
-    const match = roundPlayers[parseInt(matchIndex)].id;
-    return [player, match];
-  });
 
   /* Make matchups. */
   // Calculate team preferences.
