@@ -5,6 +5,16 @@ import {
   Round,
 } from "../src/matching/heuristics";
 
+const roundsToString = (rounds: Round[]) =>
+  rounds
+    .map(
+      (round, index) =>
+        `${index + 1}: ${round.matches
+          .map((match) => `${match[0].join(" ")} vs ${match[1].join(" ")}`)
+          .join(" | ")} (${round.sitOuts})`
+    )
+    .join("\n");
+
 const sampleRounds: Round[] = [
   {
     matches: [
@@ -95,14 +105,7 @@ describe("calculateHeuristics()", () => {
       );
       sitOuts.forEach((sit) => uniqueSits.add(sit));
     });
-    console.log(
-      rounds.map(
-        (round) =>
-          `${round.matches
-            .map((match) => `${match[0].toString()} vs ${match[1].toString()}`)
-            .toString()}, ${round.sitOuts} out`
-      )
-    );
+    console.log(roundsToString(rounds));
     expect(uniqueSits.size).toEqual(5);
     expect(uniqueTeams.size).toEqual(10);
   });

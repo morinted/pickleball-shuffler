@@ -35,7 +35,11 @@ function isTruthy<X>(x: X | null): x is X {
 /**
  * Populate default player scores for each person.
  */
-const getDefaultPlayerRecords = (players: Player[], currentPlayer: Player) => {
+const getDefaultPlayerRecords = (
+  players: Player[],
+  currentPlayer: Player,
+  previousHeuristics?: PlayerHeuristicsDictionary
+) => {
   const { highDefaults, lowDefaults } = players.reduce(
     (
       result: {
@@ -51,24 +55,57 @@ const getDefaultPlayerRecords = (players: Player[], currentPlayer: Player) => {
     },
     { highDefaults: {}, lowDefaults: {} }
   );
-  return (high?: boolean) =>
-    Object.assign(
-      { min: high ? INFINITY : 0, max: high ? INFINITY : 0 },
-      high ? highDefaults : lowDefaults
+  return (
+    stat: keyof Omit<PlayerHeuristics, "roundsSinceSitOut">
+  ): PlayerRecords => {
+    const high =
+      stat === "roundsSincePlayedAgainst" || stat === "roundsSincePlayedWith";
+    const previous = previousHeuristics?.[currentPlayer.id]?.[stat];
+    const defaults = high ? highDefaults : lowDefaults;
+    const defaultMinMax = {
+      min: high ? INFINITY : 0,
+      max: high ? INFINITY : 0,
+    };
+    if (!previous) {
+      return Object.assign(defaultMinMax, defaults);
+    }
+    return players.reduce(
+      (result: PlayerRecords, player) => {
+        if (player.id in previous) {
+          result[player.id] = previous?.[player.id];
+          return result;
+        }
+        // This is a new player, so they will have the default.
+        result[player.id] = defaults[player.id];
+        if (high) {
+          result.max = INFINITY;
+        } else {
+          result.min = 0;
+        }
+        return result;
+      },
+      { max: previous.max, min: previous.min }
     );
+  };
 };
 
 const getDefaultHeuristics = (
   players: Player[],
-  currentPlayer: Player
+  currentPlayer: Player,
+  previousHeuristics?: PlayerHeuristicsDictionary
 ): PlayerHeuristics => {
-  const defaultRecords = getDefaultPlayerRecords(players, currentPlayer);
+  const defaultRecords = getDefaultPlayerRecords(
+    players,
+    currentPlayer,
+    previousHeuristics
+  );
   return {
-    playedWithCount: defaultRecords(),
-    roundsSincePlayedWith: defaultRecords(true),
-    playedAgainstCount: defaultRecords(),
-    roundsSincePlayedAgainst: defaultRecords(true),
-    roundsSinceSitOut: INFINITY,
+    playedWithCount: defaultRecords("playedWithCount"),
+    roundsSincePlayedWith: defaultRecords("roundsSincePlayedWith"),
+    playedAgainstCount: defaultRecords("playedAgainstCount"),
+    roundsSincePlayedAgainst: defaultRecords("roundsSincePlayedAgainst"),
+    roundsSinceSitOut:
+      previousHeuristics?.[currentPlayer.id]?.roundsSinceSitOut ?? INFINITY,
   };
 };
 
@@ -123,9 +160,10 @@ const partnerScore = (
   const playedWithOffset = playedWithCount - minPlayedCount;
 
   const playedWithScore =
-    (roundsSinceWith - minSinceWith) / (playedWithOffset + 1); //*
-  // Apply up to 25% reduction if we played against this person recently.
-  //((roundsSinceAgainst / (maxSinceAgainst - minSinceAgainst) + 3) / 4);
+    (((roundsSinceWith - minSinceWith) / (playedWithOffset + 1)) *
+      // Apply up to 25% reduction if we played against this person recently.
+      (roundsSinceAgainst / (maxSinceAgainst - minSinceAgainst) + 3)) /
+    4;
 
   return playedWithScore;
 };
@@ -182,10 +220,18 @@ const minMaxHeuristicTypes: Array<
 /**
  * Get stats about who has played with and against who, and how long since people have sat out.
  */
-const getHeuristics = (rounds: Round[], players: Player[]) => {
+const getHeuristics = (
+  rounds: Round[],
+  players: Player[],
+  previousHeuristics?: PlayerHeuristicsDictionary
+) => {
   const heuristics: PlayerHeuristicsDictionary = players.reduce(
     (result: PlayerHeuristicsDictionary, currentPlayer) => {
-      result[currentPlayer.id] = getDefaultHeuristics(players, currentPlayer);
+      result[currentPlayer.id] = getDefaultHeuristics(
+        players,
+        currentPlayer,
+        previousHeuristics
+      );
       return result;
     },
     {}
