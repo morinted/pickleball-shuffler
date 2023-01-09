@@ -1,5 +1,6 @@
 import { stableRoommateProblem } from "./irvings";
 import { shuffle } from "./roommates";
+import { getVariance } from "./variance";
 
 export type PlayerId = string;
 export type Match = [Team, Team];
@@ -31,6 +32,7 @@ export const INFINITY = 9999;
 function isTruthy<X>(x: X | null): x is X {
   return !!x;
 }
+const GENERATIONS = 25;
 
 /**
  * Populate default player scores for each person.
@@ -364,6 +366,13 @@ const getSitOuts = (
     (a, b) =>
       heuristics[b.id].roundsSinceSitOut - heuristics[a.id].roundsSinceSitOut
   );
+  if (Math.random() < 0.25) {
+    // TODO: allow randomization of sitouts so that it's not just in order on subsequent rounds
+    return [
+      inOrderOfSitout.slice(1, sitouts + 1).sort(),
+      shuffle([inOrderOfSitout[0], ...inOrderOfSitout.slice(sitouts + 1)]),
+    ];
+  }
   return [
     inOrderOfSitout.slice(0, sitouts).sort(),
     shuffle(inOrderOfSitout.slice(sitouts)),
@@ -376,15 +385,11 @@ const getSitOuts = (
 const getNextRound = (
   rounds: Round[],
   players: Player[],
-  courts: number,
-  attempts?: number
+  courts: number
 ): Round => {
-  if (attempts && attempts > 100) {
-    throw new Error("infinite loop");
-  }
   const heuristics = getHeuristics(rounds, players);
 
-  const partnerGenerations = Array.from(new Array(10))
+  const partnerGenerations = Array.from(new Array(GENERATIONS))
     .map(() => {
       /* Decide who sits out. */
       const [sitoutPlayers, roundPlayers] = getSitOuts(
@@ -429,14 +434,18 @@ const getNextRound = (
         return [player, match];
       });
 
-      // Count the number of people who are partnering with someone who is at their max.
+      // Count the number of people who are partnering with someone who is at their max (and not because it's their min)
       const score = teams.reduce((result: number, [a, b]) => {
+        const aPlayedWith = heuristics[a].playedWithCount;
         const aScore =
-          heuristics[a].playedWithCount[b] === heuristics[a].playedWithCount.max
+          aPlayedWith[b] === aPlayedWith.max &&
+          aPlayedWith[b] !== aPlayedWith.min
             ? 1
             : 0;
+        const bPlayedWith = heuristics[b].playedWithCount;
         const bScore =
-          heuristics[b].playedWithCount[a] === heuristics[b].playedWithCount.max
+          bPlayedWith[a] === bPlayedWith.max &&
+          bPlayedWith[a] !== bPlayedWith.min
             ? 1
             : 0;
         return result + aScore + bScore;
@@ -447,7 +456,7 @@ const getNextRound = (
     .filter(isTruthy);
 
   // Find which generation has the lowest average partnerships.
-  const { teams, sitOuts } = partnerGenerations.reduce(
+  const { teams, sitOuts, score } = partnerGenerations.reduce(
     (
       best: {
         teams: Team[];
@@ -462,39 +471,68 @@ const getNextRound = (
   );
 
   /* Make matchups. */
-  // Calculate team preferences.
-  const teamPreferences = getTeamPreferences(teams, heuristics);
+  const matchGenerations = Array.from(new Array(GENERATIONS))
+    .map(() => {
+      const shuffledTeams = shuffle(teams);
+      const teamPreferences = getTeamPreferences(shuffledTeams, heuristics);
+      // Convert to indexes.
+      const teamToIndex = shuffledTeams.reduce(
+        (indexes: Record<string, string>, team, index) => {
+          indexes[team.toString()] = index.toString();
+          return indexes;
+        },
+        {}
+      );
+      const teamPreferenceMatrix = shuffledTeams.map((team) => {
+        return teamPreferences[team.toString()].map(
+          (preference) => teamToIndex[preference.toString()]
+        );
+      });
 
-  // Convert to indexes.
-  const teamToIndex = teams.reduce(
-    (indexes: Record<string, string>, team, index) => {
-      indexes[team.toString()] = index.toString();
-      return indexes;
+      let matchesByIndex = null;
+      try {
+        // Apply Irving's algorithm.
+        matchesByIndex = stableRoommateProblem(teamPreferenceMatrix);
+      } catch (e) {
+        // Retry if there is no stable match.
+        return null;
+      }
+
+      // Convert back to player IDs.
+      const matches: Match[] = matchesByIndex.map(
+        ([teamIndexA, teamIndexB]): Match => {
+          const teamA = shuffledTeams[parseInt(teamIndexA)].sort();
+          const teamB = shuffledTeams[parseInt(teamIndexB)].sort();
+          return [teamA, teamB].sort() as Match; // Sort for stability.
+        }
+      );
+      return matches;
+    })
+    .filter(isTruthy);
+
+  // Get best matchups.
+  const { matches } = matchGenerations.reduce(
+    (best: { score: number; matches: Match[] }, matches) => {
+      const newHeuristics = getHeuristics(
+        [{ matches, sitOuts }],
+        players,
+        heuristics
+      );
+      const averageScore = players.reduce((score, player) => {
+        const { roundsSincePlayedAgainst } = newHeuristics[player.id];
+        const playerScore = Math.sqrt(
+          players.reduce((sum, opponent) => {
+            if (opponent.id === player.id) return sum;
+            return sum + Math.pow(roundsSincePlayedAgainst[opponent.id], 2);
+          }, 0)
+        );
+        return score + playerScore / players.length;
+      }, 0);
+
+      if (best.score < averageScore) return best;
+      return { score: averageScore, matches };
     },
-    {}
-  );
-  const teamPreferenceMatrix = teams.map((team) => {
-    return teamPreferences[team.toString()].map(
-      (preference) => teamToIndex[preference.toString()]
-    );
-  });
-
-  let matchesByIndex = null;
-  try {
-    // Apply Irving's algorithm.
-    matchesByIndex = stableRoommateProblem(teamPreferenceMatrix);
-  } catch (e) {
-    // Retry if there is no stable match.
-    return getNextRound(rounds, players, courts, (attempts || 0) + 1);
-  }
-
-  // Convert back to player IDs.
-  const matches: Match[] = matchesByIndex.map(
-    ([teamIndexA, teamIndexB]): Match => {
-      const teamA = teams[parseInt(teamIndexA)].sort();
-      const teamB = teams[parseInt(teamIndexB)].sort();
-      return [teamA, teamB].sort() as Match; // Sort for stability.
-    }
+    { score: Infinity, matches: [] }
   );
 
   // Return new round.
