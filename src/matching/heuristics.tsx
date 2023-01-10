@@ -23,6 +23,7 @@ export type PlayerHeuristics = {
   playedAgainstCount: PlayerRecords;
   roundsSincePlayedAgainst: PlayerRecords;
   roundsSinceSitOut: number;
+  sitOutCount: number;
 };
 export type PlayerHeuristicsDictionary = Record<string, PlayerHeuristics>;
 export type Team = [PlayerId, PlayerId];
@@ -58,7 +59,7 @@ const getDefaultPlayerRecords = (
     { highDefaults: {}, lowDefaults: {} }
   );
   return (
-    stat: keyof Omit<PlayerHeuristics, "roundsSinceSitOut">
+    stat: keyof Omit<PlayerHeuristics, "roundsSinceSitOut" | "sitOutCount">
   ): PlayerRecords => {
     const high =
       stat === "roundsSincePlayedAgainst" || stat === "roundsSincePlayedWith";
@@ -108,23 +109,9 @@ const getDefaultHeuristics = (
     roundsSincePlayedAgainst: defaultRecords("roundsSincePlayedAgainst"),
     roundsSinceSitOut:
       previousHeuristics?.[currentPlayer.id]?.roundsSinceSitOut ?? INFINITY,
+    sitOutCount: previousHeuristics?.[currentPlayer.id]?.sitOutCount ?? 0,
   };
 };
-
-function roundsSincePlayedWith(
-  player: PlayerId,
-  heuristics: PlayerHeuristicsDictionary,
-  partner: PlayerId
-) {
-  return heuristics[player].roundsSincePlayedWith[partner] || INFINITY;
-}
-function roundsSincePlayedAgainst(
-  player: PlayerId,
-  heuristics: PlayerHeuristicsDictionary,
-  partner: PlayerId
-) {
-  return heuristics[player].roundsSincePlayedAgainst[partner] || INFINITY;
-}
 
 /**
  * Who do I want to play with?
@@ -211,7 +198,7 @@ const sortTeamCompatibility =
   };
 
 const minMaxHeuristicTypes: Array<
-  keyof Omit<PlayerHeuristics, "roundsSinceSitOut">
+  keyof Omit<PlayerHeuristics, "roundsSinceSitOut" | "sitOutCount">
 > = [
   "playedWithCount",
   "roundsSincePlayedWith",
@@ -258,6 +245,9 @@ const getHeuristics = (
         playerHeuristic.roundsSinceSitOut = value;
       }
     }
+    if (heuristic === "sitOutCount") {
+      playerHeuristic.sitOutCount += value;
+    }
     if (heuristic === "playedWithCount" || heuristic === "playedAgainstCount") {
       playerHeuristic[heuristic][subjectId] =
         (playerHeuristic[heuristic][subjectId] ?? 0) + 1;
@@ -276,10 +266,12 @@ const getHeuristics = (
   };
 
   for (let index = 0; index < rounds.length; index += 1) {
+    // Stats counting down.
     const { matches, sitOuts } = rounds[rounds.length - index - 1];
     const roundsAgo = index + 1;
     sitOuts.forEach((playerId) => {
       setHeuristic(playerId, "roundsSinceSitOut", roundsAgo, playerId);
+      setHeuristic(playerId, "sitOutCount", 1, playerId);
     });
     matches.forEach((teams) => {
       teams.forEach(([player, partner]) => {
@@ -353,6 +345,40 @@ const getTeamPreferences = (
   }, {});
 };
 
+const pickFromListBiasBeginning = <T,>(
+  list: T[],
+  count: number,
+  // Base chance of the first item, e.g. 7/7 * baseChance (60%) for the first item, 1/7 * baseChance (8.5%) for the last.
+  baseChance: number = 0.6
+): { picked: T[]; remaining: T[] } => {
+  if (count > list.length) {
+    throw Error("count must be smaller than list");
+  }
+  if (count === 0) return { picked: [], remaining: list };
+  if (count === list.length) return { picked: list, remaining: [] };
+
+  // Duplicate list.
+  const remaining = [...list];
+  const picked = [];
+  let index = 0;
+  while (picked.length < count) {
+    const rand = Math.random();
+    // Bias the beginning of the list by having it taper off linearly.
+    const chanceForIndex =
+      ((remaining.length - index) / remaining.length) * baseChance;
+    if (rand < chanceForIndex) {
+      // Remove the item from the array and add it to the picked list.
+      picked.push(remaining.splice(index, 1)[0]);
+      // No need to increment index because this index now refers to the next element in the list.
+    } else {
+      index += 1;
+    }
+    // Allow multiple passes through the array by running mod.
+    index = index % remaining.length;
+  }
+  return { picked, remaining };
+};
+
 /**
  * Choose which players sit out.
  */
@@ -362,20 +388,53 @@ const getSitOuts = (
   courts: number
 ) => {
   const sitouts = players.length - courts * 4;
+
+  // Shuffle because at the beginning everyone's rounds since sit out is the same.
   const inOrderOfSitout = shuffle(players).sort(
     (a, b) =>
       heuristics[b.id].roundsSinceSitOut - heuristics[a.id].roundsSinceSitOut
   );
-  if (Math.random() < 0.25) {
-    // TODO: allow randomization of sitouts so that it's not just in order on subsequent rounds
-    return [
-      inOrderOfSitout.slice(1, sitouts + 1).sort(),
-      shuffle([inOrderOfSitout[0], ...inOrderOfSitout.slice(sitouts + 1)]),
-    ];
-  }
+
+  // Get everyone who has sat out the least number of times.
+  const leastSitOuts = players.reduce((least, player) => {
+    return Math.min(heuristics[player.id].sitOutCount, least);
+  }, Infinity);
+
+  // Two groups: those who are yet to sit out this round, and those who have.
+  const { eligibleToSitOut, alreadySatOut } = inOrderOfSitout.reduce(
+    (
+      result: { eligibleToSitOut: Player[]; alreadySatOut: Player[] },
+      player
+    ) => {
+      if (heuristics[player.id].sitOutCount === leastSitOuts) {
+        result.eligibleToSitOut.push(player);
+      } else {
+        result.alreadySatOut.push(player);
+      }
+      return result;
+    },
+    { eligibleToSitOut: [], alreadySatOut: [] }
+  );
+
+  // If the number of sitouts exhausts the remaining sitouts, then collect them all.
+  const mandatorySitouts =
+    sitouts >= eligibleToSitOut.length ? eligibleToSitOut : [];
+
+  // We will pick whatever is left from the main group.
+  const sitoutsLeft = sitouts - mandatorySitouts.length;
+
+  // Pick from the eligibles if there are more eligibles than sitouts needed, otherwise fill up
+  // the missing sitouts from the next round.
+  const { picked, remaining } = pickFromListBiasBeginning(
+    mandatorySitouts.length ? alreadySatOut : eligibleToSitOut,
+    sitoutsLeft
+  );
+
   return [
-    inOrderOfSitout.slice(0, sitouts).sort(),
-    shuffle(inOrderOfSitout.slice(sitouts)),
+    // Sitouts: mandatory (if applicable) and picked.
+    [...mandatorySitouts, ...picked].sort(),
+    // Players: remaining from picked, plus all those who have already sat out if we didn't pick from that group.
+    shuffle([...remaining, ...(mandatorySitouts.length ? [] : alreadySatOut)]),
   ];
 };
 
@@ -424,6 +483,8 @@ const getNextRound = (
         // Apply Irving's algorithm.
         teamsByIndex = stableRoommateProblem(partnerPreferenceMatrix);
       } catch (e) {
+        console.log("returning null");
+        console.log(partnerPreferences);
         return null;
       }
 
@@ -456,7 +517,7 @@ const getNextRound = (
     .filter(isTruthy);
 
   // Find which generation has the lowest average partnerships.
-  const { teams, sitOuts, score } = partnerGenerations.reduce(
+  const { teams, sitOuts } = partnerGenerations.reduce(
     (
       best: {
         teams: Team[];

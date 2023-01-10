@@ -2,16 +2,14 @@
  * Given a set of values, calculate the similarity.
  */
 export function getVariance(numbers: number[]) {
-  let n = 0;
   let mean = 0;
   let M2 = 0;
 
-  numbers.forEach((x) => {
-    n = n + 1;
+  numbers.forEach((x, index) => {
     const delta = x - mean;
-    mean = mean + delta / n;
+    mean = mean + delta / (index + 1);
     M2 = M2 + delta * (x - mean);
   });
 
-  return M2 / n;
+  return M2 / numbers.length;
 }

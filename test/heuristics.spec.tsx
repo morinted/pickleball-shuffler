@@ -71,7 +71,7 @@ describe("calculateHeuristics()", () => {
     expect(heuristics["b"].roundsSinceSitOut).toBe(1);
     expect(heuristics["a"].roundsSinceSitOut).toBe(INFINITY);
   });
-  test("next round", () => {
+  test("next round, strict solution", () => {
     const nextRound = getNextRound(sampleRounds, samplePlayers, 1);
     expect(nextRound.sitOuts).toEqual(["a", "d"]);
     expect(nextRound.matches[0]).not.toContain([
@@ -81,7 +81,37 @@ describe("calculateHeuristics()", () => {
       ],
     ]);
   });
-  test("multiple rounds", () => {
+  test("random sitouts", () => {
+    // It should be possible to have anyone sitout when everyone has sat out.
+    const playersSelectedForSitout = new Set<string>();
+    let attempts = 0;
+    while (playersSelectedForSitout.size < 6 && attempts < 100) {
+      attempts += 1;
+      const nextRound = getNextRound(
+        [
+          ...sampleRounds,
+          {
+            matches: [
+              [
+                ["b", "e"],
+                ["c", "f"],
+              ],
+            ],
+            sitOuts: ["a", "d"], // All players have sat out.
+          },
+        ],
+        samplePlayers,
+        1
+      );
+      nextRound.sitOuts.forEach((sitOut) =>
+        playersSelectedForSitout.add(sitOut)
+      );
+    }
+    expect(playersSelectedForSitout).toEqual(
+      new Set(samplePlayers.map((x) => x.id))
+    );
+  });
+  test("many players over many rounds", () => {
     const players = sampleNames.map((name) => ({ name, id: name }));
     const rounds: Round[] = [];
     for (let i = 0; i <= 30; i++) {
