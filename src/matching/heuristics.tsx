@@ -387,7 +387,11 @@ const getSitOuts = (
   players: Player[],
   courts: number
 ) => {
-  const sitouts = players.length - courts * 4;
+  const capacity = courts * 4;
+  const sitouts =
+    players.length > capacity
+      ? players.length - courts * 4
+      : players.length % 4;
 
   // Shuffle because at the beginning everyone's rounds since sit out is the same.
   const inOrderOfSitout = shuffle(players).sort(
@@ -447,6 +451,7 @@ const getNextRound = (
   courts: number,
   heuristics: PlayerHeuristicsDictionary = getHeuristics(rounds, players)
 ): Round => {
+  // TODO: remove dupes
   const partnerGenerations = Array.from(new Array(GENERATIONS))
     .map(() => {
       /* Decide who sits out. */
@@ -482,8 +487,6 @@ const getNextRound = (
         // Apply Irving's algorithm.
         teamsByIndex = stableRoommateProblem(partnerPreferenceMatrix);
       } catch (e) {
-        console.log("returning null");
-        console.log(partnerPreferences);
         return null;
       }
 
