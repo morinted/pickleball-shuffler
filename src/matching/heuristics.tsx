@@ -444,10 +444,9 @@ const getSitOuts = (
 const getNextRound = (
   rounds: Round[],
   players: Player[],
-  courts: number
+  courts: number,
+  heuristics: PlayerHeuristicsDictionary = getHeuristics(rounds, players)
 ): Round => {
-  const heuristics = getHeuristics(rounds, players);
-
   const partnerGenerations = Array.from(new Array(GENERATIONS))
     .map(() => {
       /* Decide who sits out. */
@@ -600,4 +599,48 @@ const getNextRound = (
   return { sitOuts, matches };
 };
 
-export { getHeuristics, getNextRound };
+function getNextBestRound(rounds: Round[], players: Player[], courts: number) {
+  // Go forward 3 rounds a few times and choose the best direction.
+  // Try to avoid local tight spots.
+  const heuristics = getHeuristics(rounds, players);
+  const roundGenerations = Array.from(new Array(10)).map(() => {
+    let newHeuristics = heuristics;
+    const newRounds = Array.from(new Array(3)).map(() => {
+      const newRound = getNextRound(rounds, players, courts, heuristics);
+      newHeuristics = getHeuristics([newRound], players, newHeuristics);
+      return newRound;
+    });
+
+    const partnerScore = players.reduce((sum, player) => {
+      return (
+        sum +
+        getVariance(Object.values(newHeuristics[player.id].playedWithCount))
+      );
+    }, 0);
+    const opponentScore = players.reduce((sum, player) => {
+      return (
+        sum +
+        Math.sqrt(
+          Object.values(newHeuristics[player.id].roundsSincePlayedWith).reduce(
+            (result, roundsSincePlayedWith) =>
+              result + Math.pow(roundsSincePlayedWith, 2),
+            0
+          )
+        ) /
+          players.length
+      );
+    }, 0);
+
+    return { newRounds, newHeuristics, partnerScore, opponentScore };
+  });
+
+  const bestGeneration = roundGenerations.reduce((result, current) => {
+    if (current.partnerScore < result.partnerScore) return current;
+    if (current.opponentScore < result.opponentScore) return current;
+    return result;
+  });
+
+  return bestGeneration.newRounds[0];
+}
+
+export { getHeuristics, getNextRound, getNextBestRound };

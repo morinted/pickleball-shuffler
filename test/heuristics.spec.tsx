@@ -1,5 +1,6 @@
 import {
   getHeuristics,
+  getNextBestRound,
   getNextRound,
   INFINITY,
   Round,
@@ -114,9 +115,8 @@ describe("calculateHeuristics()", () => {
   test("many players over many rounds", () => {
     const players = sampleNames.map((name) => ({ name, id: name }));
     const rounds: Round[] = [];
-    for (let i = 0; i <= 30; i++) {
-      let round = getNextRound(rounds, players, 3);
-      console.log(JSON.stringify(round, null, 2));
+    for (let i = 0; i < players.length; i++) {
+      let round = getNextBestRound(rounds, players, 3);
       rounds.push(round);
     }
     console.log(getHeuristics(rounds, players));
@@ -125,7 +125,7 @@ describe("calculateHeuristics()", () => {
     const players = sampleNames.slice(0, 5).map((name) => ({ name, id: name }));
     const rounds: Round[] = [];
     players.forEach(() => {
-      rounds.push(getNextRound(rounds, players, 1));
+      rounds.push(getNextBestRound(rounds, players, 1));
     });
     const uniqueTeams = new Set();
     const uniqueSits = new Set();
