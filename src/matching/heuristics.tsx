@@ -466,8 +466,8 @@ const getNextRound = (
       );
       // Convert to indexes.
       const playerIdToIndex = roundPlayers.reduce(
-        (indexes: Record<string, string>, player, index) => {
-          indexes[player.id] = index.toString();
+        (indexes: Record<string, number>, player, index) => {
+          indexes[player.id] = index;
           return indexes;
         },
         {}
@@ -482,21 +482,19 @@ const getNextRound = (
         // Apply Irving's algorithm.
         teamsByIndex = stableRoommateProblem(partnerPreferenceMatrix);
       } catch (e) {
-        console.log("returning null");
-        console.log(partnerPreferences);
         return null;
       }
 
       // Convert back to player IDs.
       const teams: Team[] = teamsByIndex.map(([playerIndex, matchIndex]) => {
-        const player = roundPlayers[parseInt(playerIndex)].id;
-        const match = roundPlayers[parseInt(matchIndex)].id;
+        const player = roundPlayers[playerIndex].id;
+        const match = roundPlayers[matchIndex].id;
         return [player, match];
       });
 
       // Count the number of people who are partnering with someone who is at their max (and not because it's their min)
       const score = teams.reduce((result: number, [a, b]) => {
-        const aPlayedWith = heuristics[a].playedWithCount;
+        const aPlayedWith: PlayerRecords = heuristics[a].playedWithCount;
         const aScore =
           aPlayedWith[b] === aPlayedWith.max &&
           aPlayedWith[b] !== aPlayedWith.min
@@ -537,8 +535,8 @@ const getNextRound = (
       const teamPreferences = getTeamPreferences(shuffledTeams, heuristics);
       // Convert to indexes.
       const teamToIndex = shuffledTeams.reduce(
-        (indexes: Record<string, string>, team, index) => {
-          indexes[team.toString()] = index.toString();
+        (indexes: Record<string, number>, team, index) => {
+          indexes[team.toString()] = index;
           return indexes;
         },
         {}
@@ -561,8 +559,8 @@ const getNextRound = (
       // Convert back to player IDs.
       const matches: Match[] = matchesByIndex.map(
         ([teamIndexA, teamIndexB]): Match => {
-          const teamA = shuffledTeams[parseInt(teamIndexA)].sort();
-          const teamB = shuffledTeams[parseInt(teamIndexB)].sort();
+          const teamA = shuffledTeams[teamIndexA].sort();
+          const teamB = shuffledTeams[teamIndexB].sort();
           return [teamA, teamB].sort() as Match; // Sort for stability.
         }
       );

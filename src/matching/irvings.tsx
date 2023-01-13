@@ -1,26 +1,18 @@
-function stringify(o) {
-  const r = {};
-  for (let k in o) {
-    r[k] = o[k].map(i => i.toString());
-  }
-  return r;
-}
-
-function head(arr) {
+function head<T>(arr: T[]): T {
   return arr[0];
 }
 
-export function stableRoommateProblem(preferences: string[][]) {
-  preferences = stringify(preferences);
-  function phase1And2(preferences) {
-    const people = Object.keys(preferences);
-    const accepted = {};
+export function stableRoommateProblem(preferences: number[][]) {
+  function phase1And2(preferences: number[][]) {
+    // Get indexes.
+    const people = preferences.map((_, i) => i);
+    const accepted: Record<number, number> = {};
 
     // Phase 1: Create preference list. Each person (p) in the list propose to
     // the first person (q) on the list. If the person (q) already has a
     // proposal (o), check whether (o) prefers (p) or (q).
     while (people.length) {
-      const currProposer = people.shift();
+      const currProposer = people.shift()!;
       const proposed = preferences[currProposer][0];
       const prevProposer = accepted[proposed];
 
@@ -29,16 +21,18 @@ export function stableRoommateProblem(preferences: string[][]) {
         const currRank = preferences[proposed].indexOf(currProposer);
 
         // Lower the index, the higher the preference.
-        const idx = prevRank < currRank ? currRank : prevRank;
+        const index = prevRank < currRank ? currRank : prevRank;
         const rejects = prevRank < currRank ? currProposer : prevProposer;
         const accepts = prevRank < currRank ? prevProposer : currProposer;
         people.unshift(rejects);
         preferences[rejects].shift();
-        const rejected = preferences[proposed].slice(idx);
+        const rejected = preferences[proposed].slice(index);
         for (const r of rejected) {
-          preferences[r] = preferences[r].filter(person => person !== proposed);
+          preferences[r] = preferences[r].filter(
+            (person) => person !== proposed
+          );
         }
-        preferences[proposed] = preferences[proposed].slice(0, idx);
+        preferences[proposed] = preferences[proposed].slice(0, index);
         accepted[proposed] = accepts;
       } else {
         accepted[proposed] = currProposer;
@@ -46,14 +40,14 @@ export function stableRoommateProblem(preferences: string[][]) {
     }
 
     // Phase 2: Reject those lower than the preferences
-    for (let proposer in preferences) {
-      const idx = preferences[proposer].indexOf(accepted[proposer]);
-      if (idx === -1) continue;
-      const kept = preferences[proposer].slice(0, idx + 1);
-      const reject = preferences[proposer].slice(idx + 1);
+    for (let proposer = 0; proposer < preferences.length; proposer++) {
+      const index = preferences[proposer].indexOf(accepted[proposer]);
+      if (index === -1) continue;
+      const kept = preferences[proposer].slice(0, index + 1);
+      const reject = preferences[proposer].slice(index + 1);
       for (const rejected of reject) {
         preferences[rejected] = preferences[rejected].filter(
-          person => person !== proposer
+          (person) => person !== proposer
         );
       }
       preferences[proposer] = kept;
@@ -64,12 +58,10 @@ export function stableRoommateProblem(preferences: string[][]) {
 
   // Phase 3: Eliminate rotation.
   // As long as there is a preference list with at least 2 items.
-  while (Object.values(preferences).some(prefs => prefs.length > 1)) {
+  while (Object.values(preferences).some((prefs) => prefs.length > 1)) {
     // Find the first list with at least 2 items.
-    const [person] = Object.entries(preferences).find(
-      ([person, prefs]) => prefs.length > 1
-    );
-    if (!person) break;
+    const person = preferences.findIndex((prefs) => prefs.length > 1);
+    if (person < 0) break;
 
     // Find all rotations in the table. See the diagrams for clarification.
     const rotations = getRotation(preferences, person);
@@ -82,7 +74,8 @@ export function stableRoommateProblem(preferences: string[][]) {
     phase1And2(preferences);
   }
   const result = [];
-  for (let person in preferences) {
+  for (let person = 0; person < preferences.length; person++) {
+    if (!preferences[person]) continue;
     if (preferences[person].length === 0) {
       throw new Error("no stable matching: empty list");
     }
@@ -97,12 +90,12 @@ export function stableRoommateProblem(preferences: string[][]) {
 }
 
 function getRotation(
-  preferences,
-  person,
-  secondOrLast = true,
-  p = [person],
-  q = []
-) {
+  preferences: number[][],
+  person: number,
+  secondOrLast: boolean = true,
+  p: number[] = [person],
+  q: number[] = []
+): number[][] {
   const prefs = preferences[person];
   if (!prefs)
     throw new Error("getRotationError: no stable matching: list is empty");
@@ -121,14 +114,14 @@ function getRotation(
       q.shift();
     }
     p.shift();
-    const rotation = [];
+    const rotation: number[][] = [];
     while (p.length) {
-      const k = p.shift();
-      const v = q.shift();
+      const k = p.shift()!;
+      const v = q.shift()!;
       rotation.push([k, v]);
     }
     // Push the last item as the first.
-    rotation.unshift(rotation.pop());
+    rotation.unshift(rotation.pop()!);
     return rotation;
   }
   return getRotation(preferences, target, !secondOrLast, p, q);
