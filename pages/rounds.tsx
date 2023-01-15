@@ -51,12 +51,18 @@ export default function Rounds() {
           return (
             <React.Fragment key={JSON.stringify([teamA, teamB])}>
               <Spacer y={1} />
-              <Card variant="shadow">
+              <Card variant="bordered">
                 <Card.Body>
                   <Text h4>Court {index + 1}</Text>
-                  <Text>{teamA.map(playerName).join(" and ")}</Text>
-                  vs
-                  <Text>{teamB.map(playerName).join(" and ")}</Text>
+                  <div style={{ textAlign: "center" }}>
+                    <Text>{teamA.map(playerName).join(" and ")}</Text>
+                    <Spacer y={1} />
+                    <Card.Divider>
+                      <Text b>vs</Text>
+                    </Card.Divider>
+                    <Spacer y={1} />
+                    <Text>{teamB.map(playerName).join(" and ")}</Text>
+                  </div>
                 </Card.Body>
               </Card>
             </React.Fragment>
@@ -81,11 +87,13 @@ export default function Rounds() {
                 },
               });
               setRoundIndex(state.rounds.length);
+              window.scrollTo(0, 0);
             }}
           >
             Generate round {state.rounds.length + 1}
           </Button>
         </Row>
+        <Spacer y={1} />
       </Container>
     </>
   );
