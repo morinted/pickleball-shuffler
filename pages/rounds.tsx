@@ -51,7 +51,7 @@ export default function Rounds() {
           return (
             <React.Fragment key={JSON.stringify([teamA, teamB])}>
               <Spacer y={1} />
-              <Card>
+              <Card variant="shadow">
                 <Card.Body>
                   <Text h4>Court {index + 1}</Text>
                   <Text>{teamA.map(playerName).join(" and ")}</Text>

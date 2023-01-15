@@ -25,7 +25,7 @@ export default function Home() {
         <Spacer y={0.5} />
 
         <Row justify="center" align="center">
-          <Link href="/players">
+          <Link href="/new">
             <Button>Get shufflin'</Button>
           </Link>
         </Row>

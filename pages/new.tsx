@@ -17,12 +17,12 @@ export default function Players() {
   const router = useRouter();
   const { state, dispatch } = useShuffler();
   const [players, setPlayers] = useState("");
-  const [courts, setCourts] = useState(state.courts);
+  const [courts, setCourts] = useState(state.courts.toString());
 
   // Load last time's players.
   useEffect(() => {
     setPlayers(state.players.map((player) => player.name).join("\n"));
-    setCourts(state.courts);
+    setCourts(state.courts.toString());
   }, [state.players, state.courts]);
 
   const handleNewGame = () => {
@@ -31,12 +31,13 @@ export default function Players() {
       .map((x) => x.trim())
       .filter((x) => !!x);
     if (names.length < 4) return;
-    if (courts < 1) return;
+    const courtCount = parseInt(courts);
+    if (courtCount < 1) return;
     dispatch({
       type: "new-game",
       payload: {
         names,
-        courts,
+        courts: courtCount,
       },
     });
     router.push("/rounds");
@@ -71,7 +72,7 @@ export default function Players() {
             type="number"
             min={1}
             value={courts}
-            onChange={(e) => setCourts(parseInt(e.target.value))}
+            onChange={(e) => setCourts(e.target.value)}
           />
         </Row>
         <Spacer y={0.5} />
