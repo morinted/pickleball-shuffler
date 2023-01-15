@@ -292,6 +292,8 @@ const getHeuristics = (
     });
   }
 
+  // TODO: populate sitouts for late comers.
+
   // Calculate mins and maxes.
   players.forEach((player) => {
     minMaxHeuristicTypes.forEach((heuristic) => {
@@ -383,6 +385,7 @@ const pickFromListBiasBeginning = <T,>(
  * Choose which players sit out.
  */
 const getSitOuts = (
+  // TODO: add volunteers
   heuristics: PlayerHeuristicsDictionary,
   players: Player[],
   courts: number

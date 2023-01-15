@@ -10,7 +10,7 @@ import {
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useShuffler } from "../src/useShuffler";
 
 export default function Players() {
@@ -18,6 +18,13 @@ export default function Players() {
   const { state, dispatch } = useShuffler();
   const [players, setPlayers] = useState("");
   const [courts, setCourts] = useState(state.courts);
+
+  // Load last time's players.
+  useEffect(() => {
+    setPlayers(state.players.map((player) => player.name).join("\n"));
+    setCourts(state.courts);
+  }, [state.players, state.courts]);
+
   const handleNewGame = () => {
     const names = players
       .split("\n")

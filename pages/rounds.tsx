@@ -1,13 +1,18 @@
 import { Button, Card, Container, Row, Spacer, Text } from "@nextui-org/react";
 import Head from "next/head";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useShuffler } from "../src/useShuffler";
 
 export default function Rounds() {
   const { state, dispatch } = useShuffler();
   console.log(state);
   const [roundIndex, setRoundIndex] = useState(0);
+  useEffect(() => {
+    if (state.rounds.length && roundIndex === 0) {
+      setRoundIndex(state.rounds.length - 1);
+    }
+  }, [state.rounds]);
   const round = state.rounds[roundIndex];
   const { sitOuts = [], matches = [] } = round || {};
   const playerName = (id: string) => {
