@@ -14,7 +14,8 @@ import { useShuffler } from "../src/useShuffler";
 
 export default function Rounds() {
   const { state, dispatch } = useShuffler();
-  console.log(state);
+
+  const [generating, setGenerating] = useState(false);
   const [roundIndex, setRoundIndex] = useState(0);
   useEffect(() => {
     if (state.rounds.length && roundIndex === 0) {
@@ -79,15 +80,20 @@ export default function Rounds() {
         <Spacer y={1} />
         <Row justify="space-around">
           <Button
+            disabled={generating}
             onPress={() => {
-              dispatch({
-                type: "new-round",
-                payload: {
-                  volunteerSitouts: [],
-                },
-              });
-              setRoundIndex(state.rounds.length);
-              window.scrollTo(0, 0);
+              setGenerating(true);
+              setTimeout(() => {
+                dispatch({
+                  type: "new-round",
+                  payload: {
+                    volunteerSitouts: [],
+                  },
+                });
+                setRoundIndex(state.rounds.length);
+                setGenerating(false);
+                window.scrollTo(0, 0);
+              }, 1000);
             }}
           >
             Generate round {state.rounds.length + 1}

@@ -35,6 +35,15 @@ const sampleRounds: Round[] = [
     ],
     sitOuts: ["b", "c"],
   },
+  {
+    matches: [
+      [
+        ["b", "e"],
+        ["c", "f"],
+      ],
+    ],
+    sitOuts: ["a", "d"], // All players have sat out.
+  },
 ];
 
 const samplePlayers = [
@@ -64,7 +73,7 @@ const sampleNames = [
 
 describe("calculateHeuristics()", () => {
   test("simple example", () => {
-    const heuristics = getHeuristics(sampleRounds, samplePlayers);
+    const heuristics = getHeuristics(sampleRounds.slice(0, 2), samplePlayers);
     expect(heuristics["a"].roundsSincePlayedWith["b"]).toBe(2);
     expect(heuristics["d"].roundsSincePlayedWith["f"]).toBe(1);
     expect(heuristics["f"].roundsSincePlayedAgainst["e"]).toBe(1);
@@ -73,7 +82,7 @@ describe("calculateHeuristics()", () => {
     expect(heuristics["a"].roundsSinceSitOut).toBe(INFINITY);
   });
   test("next round, strict solution", () => {
-    const nextRound = getNextRound(sampleRounds, samplePlayers, 1);
+    const nextRound = getNextRound(sampleRounds.slice(0, 2), samplePlayers, 1);
     expect(nextRound.sitOuts).toEqual(["a", "d"]);
     expect(nextRound.matches[0]).not.toContain([
       [
@@ -82,28 +91,29 @@ describe("calculateHeuristics()", () => {
       ],
     ]);
   });
+  test("late player sitouts", () => {
+    // Late players should start with a number of sit outs equal to the current round.
+    const everyoneSatOutOnceOrTwice = [...sampleRounds, sampleRounds[0]];
+    const newPlayers = [...samplePlayers, { name: "Late", id: "late" }];
+    console.log(getHeuristics(everyoneSatOutOnceOrTwice, newPlayers));
+    expect(
+      getHeuristics(everyoneSatOutOnceOrTwice, newPlayers).late.sitOutCount
+    ).toBe(2);
+    const nextRound = getNextRound(everyoneSatOutOnceOrTwice, newPlayers, 1);
+    expect(nextRound.sitOuts).not.toContain("late");
+    expect(
+      getHeuristics([...everyoneSatOutOnceOrTwice, nextRound], newPlayers)[
+        "late"
+      ].sitOutCount
+    ).toBe(2);
+  });
   test("random sitouts", () => {
     // It should be possible to have anyone sitout when everyone has sat out.
     const playersSelectedForSitout = new Set<string>();
     let attempts = 0;
-    while (playersSelectedForSitout.size < 6 && attempts < 100) {
+    while (playersSelectedForSitout.size < 6 && attempts < 1000) {
       attempts += 1;
-      const nextRound = getNextRound(
-        [
-          ...sampleRounds,
-          {
-            matches: [
-              [
-                ["b", "e"],
-                ["c", "f"],
-              ],
-            ],
-            sitOuts: ["a", "d"], // All players have sat out.
-          },
-        ],
-        samplePlayers,
-        1
-      );
+      const nextRound = getNextRound(sampleRounds, samplePlayers, 1);
       nextRound.sitOuts.forEach((sitOut) =>
         playersSelectedForSitout.add(sitOut)
       );

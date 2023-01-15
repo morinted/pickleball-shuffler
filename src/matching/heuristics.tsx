@@ -292,7 +292,44 @@ const getHeuristics = (
     });
   }
 
-  // TODO: populate sitouts for late comers.
+  // Populate sitouts for late comers.
+  const roundSeen: Record<PlayerId, number> = {};
+  const sitOutCounts: Record<PlayerId, number> = {};
+  const lateComers: PlayerId[] = [];
+  const seePlayer = (player: PlayerId, index: number) => {
+    const lastSeen = roundSeen[player];
+    roundSeen[player] = index;
+    // If it's not the first round and this is a new player, then they were late.
+    if (lastSeen === undefined && index !== 0) {
+      // Late comer. Set them to sit out next batch (as if they had sit out first.)
+      sitOutCounts[player] =
+        Object.values(sitOutCounts).reduce((lowest, current) =>
+          Math.min(lowest, current)
+        ) + 1;
+      lateComers.push(player);
+    }
+  };
+  // Populate for every player in every round.
+  rounds.forEach((round, index) => {
+    const { matches, sitOuts } = round;
+    sitOuts.forEach((player) => {
+      seePlayer(player, index);
+      sitOutCounts[player] = (sitOutCounts[player] || 0) + 1;
+    });
+    matches.forEach((teams) =>
+      teams.forEach((team) =>
+        team.forEach((player) => seePlayer(player, index))
+      )
+    );
+  });
+  // Populate the current round.
+  players.forEach((player) => {
+    seePlayer(player.id, rounds.length);
+  });
+  // Update the heuristics for late comers.
+  lateComers.forEach((player) => {
+    heuristics[player].sitOutCount = sitOutCounts[player];
+  });
 
   // Calculate mins and maxes.
   players.forEach((player) => {
@@ -455,6 +492,7 @@ const getNextRound = (
   heuristics: PlayerHeuristicsDictionary = getHeuristics(rounds, players)
 ): Round => {
   // TODO: remove dupes
+  // TODO: add set timeouts to allow other events to run.
   const partnerGenerations = Array.from(new Array(GENERATIONS))
     .map(() => {
       /* Decide who sits out. */
