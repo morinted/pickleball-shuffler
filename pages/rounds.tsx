@@ -9,7 +9,7 @@ export default function Rounds() {
   console.log(state);
   const [roundIndex, setRoundIndex] = useState(0);
   const round = state.rounds[roundIndex];
-  const { sitOuts, matches } = round || {};
+  const { sitOuts = [], matches = [] } = round || {};
   const playerName = (id: string) => {
     return state.playersById[id].name;
   };

@@ -3,6 +3,7 @@ import Document, { Html, Head, Main, NextScript } from "next/document";
 import { CssBaseline } from "@nextui-org/react";
 
 class MyDocument extends Document {
+  // @ts-expect-error
   static async getInitialProps(ctx) {
     const initialProps = await Document.getInitialProps(ctx);
     return {

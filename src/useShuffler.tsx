@@ -72,9 +72,6 @@ function shufflerReducer(state: State, action: Action) {
         rounds: [...state.rounds, nextRound],
       };
     }
-    default: {
-      throw new Error(`Unhandled action type: ${action.type}`);
-    }
   }
 }
 
