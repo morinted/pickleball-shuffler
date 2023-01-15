@@ -1,7 +1,15 @@
-import { Button, Card, Container, Row, Spacer, Text } from "@nextui-org/react";
+import {
+  Button,
+  Card,
+  Container,
+  Row,
+  Spacer,
+  Text,
+  Pagination,
+} from "@nextui-org/react";
 import Head from "next/head";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useShuffler } from "../src/useShuffler";
 
 export default function Rounds() {
@@ -41,36 +49,41 @@ export default function Rounds() {
         </Row>
         {matches.map(([teamA, teamB], index) => {
           return (
-            <Card>
-              <Text h4>Court {index + 1}</Text>
-              <Text>{teamA.map(playerName).join(" and ")}</Text>
-              vs
-              <Text>{teamB.map(playerName).join(" and ")}</Text>
-            </Card>
+            <React.Fragment key={JSON.stringify([teamA, teamB])}>
+              <Spacer y={1} />
+              <Card>
+                <Card.Body>
+                  <Text h4>Court {index + 1}</Text>
+                  <Text>{teamA.map(playerName).join(" and ")}</Text>
+                  vs
+                  <Text>{teamB.map(playerName).join(" and ")}</Text>
+                </Card.Body>
+              </Card>
+            </React.Fragment>
           );
         })}
         <Spacer y={1} />
         <Row justify="space-around">
-          <Button
-            onPress={() => setRoundIndex((index) => index - 1)}
-            disabled={!roundIndex}
-          >
-            Previous round
-          </Button>
+          <Pagination
+            total={state.rounds.length}
+            page={roundIndex + 1}
+            onChange={(page: number) => setRoundIndex(page - 1)}
+          />
+        </Row>
+        <Spacer y={1} />
+        <Row justify="space-around">
           <Button
             onPress={() => {
-              if (roundIndex === state.rounds.length - 1) {
-                dispatch({
-                  type: "new-round",
-                  payload: {
-                    volunteerSitouts: [],
-                  },
-                });
-              }
-              setRoundIndex((index) => index + 1);
+              dispatch({
+                type: "new-round",
+                payload: {
+                  volunteerSitouts: [],
+                },
+              });
+              setRoundIndex(state.rounds.length);
             }}
           >
-            Next round
+            Generate round {state.rounds.length + 1}
           </Button>
         </Row>
       </Container>
