@@ -6,10 +6,13 @@ import {
   Spacer,
   Text,
   Pagination,
+  Badge,
 } from "@nextui-org/react";
 import Head from "next/head";
 import Link from "next/link";
-import React, { useEffect, useState } from "react";
+import React, { Fragment, useEffect, useState } from "react";
+import { PlayerBadge } from "../src/PlayerBadge";
+import TeamBadges from "../src/TeamBadges";
 import { useShuffler } from "../src/useShuffler";
 
 export default function Rounds() {
@@ -30,7 +33,7 @@ export default function Rounds() {
   return (
     <>
       <Head>
-        <title>Rounds - Pickleball Shuffler</title>
+        <title>Rounds - Jumbled Doubles</title>
         <meta name="description" content="View player rounds" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
@@ -43,7 +46,16 @@ export default function Rounds() {
 
         {!!sitOuts.length && (
           <Row justify="center" align="center">
-            <Text>Sitting out: {sitOuts.map(playerName).join(", ")}</Text>
+            <Text b>Sitting out:</Text>
+            {sitOuts
+              .map(playerName)
+              .sort()
+              .map((name) => (
+                <Fragment key={name}>
+                  <Spacer x={0.5} inline />
+                  <PlayerBadge color="default">{name}</PlayerBadge>
+                </Fragment>
+              ))}
           </Row>
         )}
         {matches.map(([teamA, teamB], index) => {
@@ -54,13 +66,13 @@ export default function Rounds() {
                 <Card.Body>
                   <Text h4>Court {index + 1}</Text>
                   <div style={{ textAlign: "center" }}>
-                    <Text>{teamA.map(playerName).join(" and ")}</Text>
+                    <TeamBadges team={teamA.map(playerName).sort()} isHome />
                     <Spacer y={1} />
                     <Card.Divider>
                       <Text b>vs</Text>
                     </Card.Divider>
                     <Spacer y={1} />
-                    <Text>{teamB.map(playerName).join(" and ")}</Text>
+                    <TeamBadges team={teamB.map(playerName).sort()} />
                   </div>
                 </Card.Body>
               </Card>
