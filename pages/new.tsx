@@ -45,7 +45,7 @@ export default function Players() {
   return (
     <>
       <Head>
-        <title>Players - Pickleball Shuffler</title>
+        <title>New game - Jumbled Doubles</title>
         <meta name="description" content="Add players" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
@@ -53,12 +53,9 @@ export default function Players() {
       <Container>
         <Spacer y={1} />
         <Row justify="center" align="center">
-          <Link href="/">
-            <Text h1>Pickleball Shuffler 🃏</Text>
-          </Link>
-        </Row>
-        <Row justify="center" align="center">
           <Textarea
+            id="player-input"
+            itemID="player-input-label"
             label="Who's playing? Put one name per line."
             placeholder={"Jo Swift\nKathryn Lob"}
             value={players}
@@ -68,6 +65,7 @@ export default function Players() {
         <Spacer y={1} />
         <Row justify="center" align="center">
           <Input
+            id="court-input"
             label="How many courts?"
             type="number"
             min={1}

@@ -38,16 +38,14 @@ export default function Rounds() {
       <Container>
         <Spacer y={1} />
         <Row justify="center" align="center">
-          <Link href="/">
-            <Text h1>Pickleball Shuffler 🃏</Text>
-          </Link>
-        </Row>
-        <Row justify="center" align="center">
           <Text h3>Round {roundIndex + 1}</Text>
         </Row>
-        <Row justify="center" align="center">
-          <Text>Sitting out: {sitOuts.map(playerName).join(", ")}</Text>
-        </Row>
+
+        {!!sitOuts.length && (
+          <Row justify="center" align="center">
+            <Text>Sitting out: {sitOuts.map(playerName).join(", ")}</Text>
+          </Row>
+        )}
         {matches.map(([teamA, teamB], index) => {
           return (
             <React.Fragment key={JSON.stringify([teamA, teamB])}>

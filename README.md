@@ -1,4 +1,4 @@
-# Pickleball Shuffler
+# Jumbled doubles
 
 Mix up your pickleball matches
 
