@@ -83,7 +83,7 @@ describe("calculateHeuristics()", () => {
     expect(heuristics["a"].roundsSincePlayedAgainst).not.toHaveProperty("a");
   });
   test("next round, strict solution", async () => {
-    const nextRound = await getNextRound(
+    const [nextRound] = await getNextRound(
       sampleRounds.slice(0, 2),
       samplePlayers,
       1
@@ -103,7 +103,7 @@ describe("calculateHeuristics()", () => {
     expect(
       getHeuristics(everyoneSatOutOnceOrTwice, newPlayers).late.sitOutCount
     ).toBe(2);
-    const nextRound = await getNextRound(
+    const [nextRound] = await getNextRound(
       everyoneSatOutOnceOrTwice,
       newPlayers,
       1
@@ -121,7 +121,7 @@ describe("calculateHeuristics()", () => {
     let attempts = 0;
     while (playersSelectedForSitout.size < 6 && attempts < 1000) {
       attempts += 1;
-      const nextRound = await getNextRound(sampleRounds, samplePlayers, 1);
+      const [nextRound] = await getNextRound(sampleRounds, samplePlayers, 1);
       nextRound.sitOuts.forEach((sitOut) =>
         playersSelectedForSitout.add(sitOut)
       );
@@ -130,14 +130,18 @@ describe("calculateHeuristics()", () => {
       new Set(samplePlayers.map((x) => x.id))
     );
   });
-  test("many players over many rounds", async () => {
-    const players = sampleNames.map((name) => ({ name, id: name }));
+  test("play with everyone in as many rounds as there are players", async () => {
+    const players = sampleNames.map((name) => ({ name, id: name })).slice(0, 9);
     const rounds: Round[] = [];
     for (let i = 0; i < players.length; i++) {
       let round = await getNextBestRound(rounds, players, 3);
       rounds.push(round);
     }
-    console.log(getHeuristics(rounds, players));
+    const heuristics = getHeuristics(rounds, players);
+    const numberOfMistakes = players.reduce((sum, player) => {
+      return sum + heuristics[player.id].playedWithCount.max - 1;
+    }, 0);
+    expect(numberOfMistakes).toBe(0);
   });
   test("5 players, 5 games", async () => {
     const players = sampleNames.slice(0, 5).map((name) => ({ name, id: name }));

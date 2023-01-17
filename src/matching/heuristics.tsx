@@ -1,6 +1,5 @@
 import { stableRoommateProblem } from "./irvings";
 import { shuffle } from "./roommates";
-import { getVariance } from "./variance";
 
 export type PlayerId = string;
 export type Match = [Team, Team];
@@ -31,7 +30,9 @@ export type Team = [PlayerId, PlayerId];
 // Instead of using Infinity, use a high number so that comparative values can be calculated.
 export const INFINITY = 9999;
 
-const GENERATIONS = 10;
+const GENERATIONS = 5;
+const ROUND_LOOKAHEAD = 4;
+const ROUND_ATTEMPTS = 25;
 
 /**
  * Populate default player scores for each person.
@@ -135,11 +136,7 @@ const partnerScore = (
   heuristics: PlayerHeuristicsDictionary,
   partner: PlayerId
 ) => {
-  const {
-    min: minSinceAgainst,
-    max: maxSinceAgainst,
-    [partner]: roundsSinceAgainst,
-  } = heuristics[player].roundsSincePlayedAgainst;
+  const {} = heuristics[player].roundsSincePlayedAgainst;
   const { min: minSinceWith, [partner]: roundsSinceWith } =
     heuristics[player].roundsSincePlayedWith;
   const { min: minPlayedCount, [partner]: playedWithCount } =
@@ -148,10 +145,7 @@ const partnerScore = (
   const playedWithOffset = playedWithCount - minPlayedCount;
 
   const playedWithScore =
-    (((roundsSinceWith - minSinceWith) / (playedWithOffset + 1)) *
-      // Apply up to 10% reduction if we played against this person recently.
-      (roundsSinceAgainst / (maxSinceAgainst - minSinceAgainst) + 9)) /
-    10;
+    (roundsSinceWith - minSinceWith) / (playedWithOffset + 1);
 
   return playedWithScore;
 };
@@ -302,8 +296,9 @@ const getHeuristics = (
     if (lastSeen === undefined && index !== 0) {
       // Late comer. Set them to sit out next batch (as if they had sit out first.)
       sitOutCounts[player] =
-        Object.values(sitOutCounts).reduce((lowest, current) =>
-          Math.min(lowest, current)
+        Object.values(sitOutCounts).reduce(
+          (lowest, current) => Math.min(lowest, current),
+          Infinity
         ) + 1;
       lateComers.push(player);
     }
@@ -489,7 +484,7 @@ async function getNextRound(
   players: Player[],
   courts: number,
   heuristics: PlayerHeuristicsDictionary = getHeuristics(rounds, players)
-): Promise<Round> {
+): Promise<[Round, { bestTeamScore: number; bestMatchesScore: number }]> {
   // TODO: remove dupes
   // TODO: add set timeouts to allow other events to run.
   let bestTeamScore = Infinity;
@@ -560,6 +555,10 @@ async function getNextRound(
     }
   }
 
+  if (!bestTeams) {
+    throw new Error("no teams found");
+  }
+
   /* Make matchups. */
   let bestMatchesScore = Infinity;
   let bestMatches: Match[] | null = null;
@@ -625,7 +624,10 @@ async function getNextRound(
   if (!bestMatches) {
     throw new Error("no matches found");
   }
-  return { sitOuts: bestTeams.sitOuts, matches: bestMatches };
+  return [
+    { sitOuts: bestTeams.sitOuts, matches: bestMatches },
+    { bestTeamScore, bestMatchesScore },
+  ];
 }
 
 async function getNextBestRound(
@@ -640,36 +642,42 @@ async function getNextBestRound(
     opponentScore: Infinity,
     partnerScore: Infinity,
   };
+  let worstRoundScore: { opponentScore: number; partnerScore: number } = {
+    opponentScore: 0,
+    partnerScore: 0,
+  };
   let selectedRound: Round | null = null;
-  for (let attempt = 0; attempt < GENERATIONS * 2; attempt++) {
+  const lastRound = rounds.length === 8;
+  for (let attempt = 0; attempt < ROUND_ATTEMPTS; attempt++) {
     await new Promise((resolve) => resolve(undefined));
     let newHeuristics = heuristics;
     let newRounds = [];
-    for (let roundGeneration = 0; roundGeneration < 3; roundGeneration++) {
-      const newRound = await getNextRound(rounds, players, courts, heuristics);
-      newHeuristics = getHeuristics([newRound], players, newHeuristics);
-      newRounds.push(newRound);
-    }
+    let partnerScore = 0;
+    let opponentScore = Infinity;
+    for (
+      let roundGeneration = 0;
+      roundGeneration < ROUND_LOOKAHEAD;
+      roundGeneration++
+    ) {
+      try {
+        const [newRound, roundStats] = await getNextRound(
+          rounds,
+          players,
+          courts,
+          heuristics
+        );
+        newHeuristics = getHeuristics([newRound], players, newHeuristics);
+        newRounds.push(newRound);
+        // We care more about the short term team score.
+        partnerScore =
+          roundStats.bestTeamScore * (ROUND_LOOKAHEAD - roundGeneration);
 
-    const partnerScore = players.reduce((sum, player) => {
-      return (
-        sum +
-        getVariance(Object.values(newHeuristics[player.id].playedWithCount))
-      );
-    }, 0);
-    const opponentScore = players.reduce((sum, player) => {
-      return (
-        sum +
-        Math.sqrt(
-          Object.values(newHeuristics[player.id].roundsSincePlayedWith).reduce(
-            (result, roundsSincePlayedWith) =>
-              result + Math.pow(roundsSincePlayedWith, 2),
-            0
-          )
-        ) /
-          players.length
-      );
-    }, 0);
+        // We only care about the end-result for matches.
+        opponentScore = roundStats.bestMatchesScore;
+      } catch (e) {
+        // No round found.
+      }
+    }
 
     if (bestRoundScore.partnerScore < partnerScore) continue;
     // Partner score better or equal. Opponent score counts for fallback.
@@ -681,6 +689,8 @@ async function getNextBestRound(
       selectedRound = newRounds[0];
     }
   }
+
+  console.log(bestRoundScore, worstRoundScore);
 
   return selectedRound!;
 }
