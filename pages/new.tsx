@@ -4,41 +4,51 @@ import {
   Input,
   Row,
   Spacer,
-  Text,
   Textarea,
+  useInput,
 } from "@nextui-org/react";
+import dynamic from "next/dynamic";
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
-import { useShuffler } from "../src/useShuffler";
+import { useEffect, useRef, useState } from "react";
+import {
+  newGame,
+  useShufflerDispatch,
+  useShufflerState,
+} from "../src/useShuffler";
 
-export default function Players() {
+function NewGame() {
   const router = useRouter();
-  const { state, dispatch } = useShuffler();
-  const [players, setPlayers] = useState("");
+  const state = useShufflerState();
+  const dispatch = useShufflerDispatch();
+
+  // Rerendering on text input was very slow due to NextUI textarea element.
+  const playersRef = useRef<HTMLTextAreaElement>(null);
+
   const [courts, setCourts] = useState(state.courts.toString());
 
   // Load last time's players.
   useEffect(() => {
-    setPlayers(state.players.map((player) => player.name).join("\n"));
+    if (playersRef.current) {
+      playersRef.current.value = state.players
+        .map((player) => player.name)
+        .join("\n");
+    }
     setCourts(state.courts.toString());
   }, [state.players, state.courts]);
 
   const handleNewGame = () => {
-    const names = players
+    if (!playersRef.current) return;
+    const names = playersRef.current.value
       .split("\n")
       .map((x) => x.trim())
       .filter((x) => !!x);
     if (names.length < 4) return;
     const courtCount = parseInt(courts);
     if (courtCount < 1) return;
-    dispatch({
-      type: "new-game",
-      payload: {
-        names,
-        courts: courtCount,
-      },
+    newGame(dispatch, state, {
+      names,
+      courts: courtCount,
     });
     router.push("/rounds");
   };
@@ -54,12 +64,11 @@ export default function Players() {
         <Spacer y={1} />
         <Row justify="center" align="center">
           <Textarea
+            ref={playersRef}
             id="player-input"
             itemID="player-input-label"
             label="Who's playing? Put one name per line."
             placeholder={"Jo Swift\nKathryn Lob"}
-            value={players}
-            onChange={(e) => setPlayers(e.target.value)}
           />
         </Row>
         <Spacer y={1} />
@@ -81,3 +90,6 @@ export default function Players() {
     </>
   );
 }
+
+//
+export default dynamic(() => Promise.resolve(NewGame), { ssr: false });

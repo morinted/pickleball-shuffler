@@ -7,23 +7,47 @@ import {
 } from "./matching/heuristics";
 import { v4 as uuidv4 } from "uuid";
 
+type NewRoundOptions = {
+  volunteerSitouts: PlayerId[];
+};
+
+type NewGameOptions = {
+  names: string[];
+  courts: number;
+};
+
 type Action =
   | {
       type: "load-from-cache";
       payload: null;
     }
   | {
-      type: "new-game";
+      type: "new-game-start";
       payload: {
-        names: string[];
+        players: Player[];
+        playersById: Record<PlayerId, Player>;
         courts: number;
       };
     }
   | {
+      type: "new-game";
+      payload: Round;
+    }
+  | {
+      type: "new-game-fail";
+      payload: { error: Error };
+    }
+  | {
       type: "new-round";
-      payload: {
-        volunteerSitouts: PlayerId[];
-      };
+      payload: Round;
+    }
+  | {
+      type: "new-round-start";
+      payload: NewRoundOptions;
+    }
+  | {
+      type: "new-round-fail";
+      payload: { error: Error };
     };
 type Dispatch = (action: Action) => void;
 type State = {
@@ -31,6 +55,7 @@ type State = {
   rounds: Round[];
   courts: number;
   playersById: Record<PlayerId, Player>;
+  generating: boolean;
   cacheLoaded: boolean;
 };
 type ShufflerProviderProps = { children: React.ReactNode };
@@ -40,12 +65,14 @@ const defaultState: State = {
   playersById: {},
   rounds: [],
   courts: 2,
+  generating: false,
   cacheLoaded: false,
 };
 
-const ShufflerStateContext = React.createContext<
-  { state: State; dispatch: Dispatch } | undefined
->(undefined);
+const ShufflerStateContext = React.createContext<State | undefined>(undefined);
+const ShufflerDispatchContext = React.createContext<Dispatch | undefined>(
+  undefined
+);
 
 function createPlayers(names: string[]) {
   return names.map((name) => {
@@ -74,7 +101,14 @@ function loadFromCache(previousState: State): State {
       return existingState;
 
     const playersById = getPlayersById({}, players);
-    return { players, playersById, rounds, courts, cacheLoaded: true };
+    return {
+      players,
+      playersById,
+      rounds,
+      courts,
+      cacheLoaded: true,
+      generating: false,
+    };
   } catch (e) {
     return existingState;
   }
@@ -94,58 +128,130 @@ function cacheState(state: State): State {
 
 function shufflerReducer(state: State, action: Action) {
   switch (action.type) {
-    case "new-game": {
+    case "new-game-start": {
       const { payload } = action;
-      const players = createPlayers(payload.names);
+      const { players, playersById, courts } = payload;
 
       return cacheState({
         ...state,
         players,
-        playersById: getPlayersById(state.playersById, players),
-        courts: payload.courts,
-        rounds: [getNextBestRound([], players, payload.courts)],
+        playersById,
+        courts,
+        rounds: [],
+        generating: true,
+      });
+    }
+    case "new-game": {
+      const { payload } = action;
+
+      return cacheState({
+        ...state,
+        rounds: [payload],
+        generating: false,
       });
     }
     case "load-from-cache": {
       return loadFromCache(state);
     }
+    case "new-round-start":
+      return {
+        ...state,
+        generating: true,
+      };
     case "new-round": {
-      const nextRound = getNextBestRound(
-        state.rounds,
-        state.players,
-        state.courts
-      );
       return cacheState({
         ...state,
-        rounds: [...state.rounds, nextRound],
+        generating: false,
+        rounds: [...state.rounds, action.payload],
       });
     }
+  }
+  return state;
+}
+
+async function newRound(
+  dispatch: Dispatch,
+  state: State,
+  payload: NewRoundOptions
+) {
+  dispatch({ type: "new-round-start", payload });
+  try {
+    const nextRound = await getNextBestRound(
+      state.rounds,
+      state.players,
+      state.courts
+    );
+    dispatch({ type: "new-round", payload: nextRound });
+  } catch (error) {
+    dispatch({ type: "new-round-fail", payload: { error: error as Error } });
+  }
+}
+
+async function newGame(
+  dispatch: Dispatch,
+  state: State,
+  payload: NewGameOptions
+) {
+  const { courts, names } = payload;
+  const players = createPlayers(names);
+  const playersById = getPlayersById(state.playersById, players);
+  dispatch({
+    type: "new-game-start",
+    payload: { players, playersById, courts },
+  });
+  try {
+    const nextRound = await getNextBestRound([], players, courts);
+    dispatch({ type: "new-game", payload: nextRound });
+  } catch (error) {
+    dispatch({ type: "new-game-fail", payload: { error: error as Error } });
   }
 }
 
 function ShufflerProvider({ children }: ShufflerProviderProps) {
   const [state, dispatch] = React.useReducer(shufflerReducer, defaultState);
-  const value = { state, dispatch };
   return (
-    <ShufflerStateContext.Provider value={value}>
-      {children}
+    <ShufflerStateContext.Provider value={state}>
+      <ShufflerDispatchContext.Provider value={dispatch}>
+        {children}
+      </ShufflerDispatchContext.Provider>
     </ShufflerStateContext.Provider>
   );
 }
 
-function useShuffler() {
-  const context = React.useContext(ShufflerStateContext);
+function useShufflerState() {
+  const state = React.useContext(ShufflerStateContext);
+
+  if (state === undefined) {
+    throw new Error("useShuffler must be used within a ShufflerProvider");
+  }
+  return state;
+}
+
+function useShufflerDispatch() {
+  const dispatch = React.useContext(ShufflerDispatchContext);
+
+  if (dispatch === undefined) {
+    throw new Error("useShuffler must be used within a ShufflerProvider");
+  }
+  return dispatch;
+}
+
+function useLoadState() {
+  const state = useShufflerState();
+  const dispatch = useShufflerDispatch();
   React.useEffect(() => {
-    if (!context) return;
-    const { state, dispatch } = context;
+    if (!state) return;
     if (state.cacheLoaded === false) {
       dispatch({ type: "load-from-cache", payload: null });
     }
-  }, [context?.state?.cacheLoaded]);
-  if (context === undefined) {
-    throw new Error("useShuffler must be used within a ShufflerProvider");
-  }
-  return context;
+  }, [state?.cacheLoaded]);
 }
 
-export { ShufflerProvider, useShuffler };
+export {
+  ShufflerProvider,
+  useShufflerState,
+  useShufflerDispatch,
+  useLoadState,
+  newRound,
+  newGame,
+};

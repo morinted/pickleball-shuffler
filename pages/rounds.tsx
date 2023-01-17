@@ -9,16 +9,19 @@ import {
   Badge,
 } from "@nextui-org/react";
 import Head from "next/head";
-import Link from "next/link";
 import React, { Fragment, useEffect, useState } from "react";
 import { PlayerBadge } from "../src/PlayerBadge";
 import TeamBadges from "../src/TeamBadges";
-import { useShuffler } from "../src/useShuffler";
+import {
+  newRound,
+  useShufflerDispatch,
+  useShufflerState,
+} from "../src/useShuffler";
 
 export default function Rounds() {
-  const { state, dispatch } = useShuffler();
+  const state = useShufflerState();
+  const dispatch = useShufflerDispatch();
 
-  const [generating, setGenerating] = useState(false);
   const [roundIndex, setRoundIndex] = useState(0);
   useEffect(() => {
     if (state.rounds.length && roundIndex === 0) {
@@ -90,20 +93,10 @@ export default function Rounds() {
         <Spacer y={1} />
         <Row justify="space-around">
           <Button
-            disabled={generating}
+            disabled={state.generating}
             onPress={() => {
-              setGenerating(true);
-              setTimeout(() => {
-                dispatch({
-                  type: "new-round",
-                  payload: {
-                    volunteerSitouts: [],
-                  },
-                });
-                setRoundIndex(state.rounds.length);
-                setGenerating(false);
-                window.scrollTo(0, 0);
-              }, 1000);
+              newRound(dispatch, state, { volunteerSitouts: [] });
+              setRoundIndex(state.rounds.length);
             }}
           >
             Generate round {state.rounds.length + 1}

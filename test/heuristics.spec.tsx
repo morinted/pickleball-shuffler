@@ -80,9 +80,14 @@ describe("calculateHeuristics()", () => {
     expect(heuristics["e"].roundsSinceSitOut).toBe(2);
     expect(heuristics["b"].roundsSinceSitOut).toBe(1);
     expect(heuristics["a"].roundsSinceSitOut).toBe(INFINITY);
+    expect(heuristics["a"].roundsSincePlayedAgainst).not.toHaveProperty("a");
   });
-  test("next round, strict solution", () => {
-    const nextRound = getNextRound(sampleRounds.slice(0, 2), samplePlayers, 1);
+  test("next round, strict solution", async () => {
+    const nextRound = await getNextRound(
+      sampleRounds.slice(0, 2),
+      samplePlayers,
+      1
+    );
     expect(nextRound.sitOuts).toEqual(["a", "d"]);
     expect(nextRound.matches[0]).not.toContain([
       [
@@ -91,15 +96,18 @@ describe("calculateHeuristics()", () => {
       ],
     ]);
   });
-  test("late player sitouts", () => {
+  test("late player sitouts", async () => {
     // Late players should start with a number of sit outs equal to the current round.
     const everyoneSatOutOnceOrTwice = [...sampleRounds, sampleRounds[0]];
     const newPlayers = [...samplePlayers, { name: "Late", id: "late" }];
-    console.log(getHeuristics(everyoneSatOutOnceOrTwice, newPlayers));
     expect(
       getHeuristics(everyoneSatOutOnceOrTwice, newPlayers).late.sitOutCount
     ).toBe(2);
-    const nextRound = getNextRound(everyoneSatOutOnceOrTwice, newPlayers, 1);
+    const nextRound = await getNextRound(
+      everyoneSatOutOnceOrTwice,
+      newPlayers,
+      1
+    );
     expect(nextRound.sitOuts).not.toContain("late");
     expect(
       getHeuristics([...everyoneSatOutOnceOrTwice, nextRound], newPlayers)[
@@ -107,13 +115,13 @@ describe("calculateHeuristics()", () => {
       ].sitOutCount
     ).toBe(2);
   });
-  test("random sitouts", () => {
+  test("random sitouts", async () => {
     // It should be possible to have anyone sitout when everyone has sat out.
     const playersSelectedForSitout = new Set<string>();
     let attempts = 0;
     while (playersSelectedForSitout.size < 6 && attempts < 1000) {
       attempts += 1;
-      const nextRound = getNextRound(sampleRounds, samplePlayers, 1);
+      const nextRound = await getNextRound(sampleRounds, samplePlayers, 1);
       nextRound.sitOuts.forEach((sitOut) =>
         playersSelectedForSitout.add(sitOut)
       );
@@ -122,21 +130,21 @@ describe("calculateHeuristics()", () => {
       new Set(samplePlayers.map((x) => x.id))
     );
   });
-  test("many players over many rounds", () => {
+  test("many players over many rounds", async () => {
     const players = sampleNames.map((name) => ({ name, id: name }));
     const rounds: Round[] = [];
     for (let i = 0; i < players.length; i++) {
-      let round = getNextBestRound(rounds, players, 3);
+      let round = await getNextBestRound(rounds, players, 3);
       rounds.push(round);
     }
     console.log(getHeuristics(rounds, players));
   });
-  test("5 players, 5 games", () => {
+  test("5 players, 5 games", async () => {
     const players = sampleNames.slice(0, 5).map((name) => ({ name, id: name }));
     const rounds: Round[] = [];
-    players.forEach(() => {
-      rounds.push(getNextBestRound(rounds, players, 1));
-    });
+    for (let player in players) {
+      rounds.push(await getNextBestRound(rounds, players, 1));
+    }
     const uniqueTeams = new Set();
     const uniqueSits = new Set();
     rounds.forEach(({ matches, sitOuts }) => {

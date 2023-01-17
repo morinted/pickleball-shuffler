@@ -30,10 +30,8 @@ export type Team = [PlayerId, PlayerId];
 
 // Instead of using Infinity, use a high number so that comparative values can be calculated.
 export const INFINITY = 9999;
-function isTruthy<X>(x: X | null): x is X {
-  return !!x;
-}
-const GENERATIONS = 25;
+
+const GENERATIONS = 10;
 
 /**
  * Populate default player scores for each person.
@@ -74,6 +72,7 @@ const getDefaultPlayerRecords = (
     }
     return players.reduce(
       (result: PlayerRecords, player) => {
+        if (player.id === currentPlayer.id) return result;
         if (player.id in previous) {
           result[player.id] = previous?.[player.id];
           return result;
@@ -150,9 +149,9 @@ const partnerScore = (
 
   const playedWithScore =
     (((roundsSinceWith - minSinceWith) / (playedWithOffset + 1)) *
-      // Apply up to 25% reduction if we played against this person recently.
-      (roundsSinceAgainst / (maxSinceAgainst - minSinceAgainst) + 3)) /
-    4;
+      // Apply up to 10% reduction if we played against this person recently.
+      (roundsSinceAgainst / (maxSinceAgainst - minSinceAgainst) + 9)) /
+    10;
 
   return playedWithScore;
 };
@@ -485,175 +484,172 @@ const getSitOuts = (
 /**
  * Generate the next round given all previous rounds.
  */
-const getNextRound = (
+async function getNextRound(
   rounds: Round[],
   players: Player[],
   courts: number,
   heuristics: PlayerHeuristicsDictionary = getHeuristics(rounds, players)
-): Round => {
+): Promise<Round> {
   // TODO: remove dupes
   // TODO: add set timeouts to allow other events to run.
-  const partnerGenerations = Array.from(new Array(GENERATIONS))
-    .map(() => {
-      /* Decide who sits out. */
-      const [sitoutPlayers, roundPlayers] = getSitOuts(
-        heuristics,
-        players,
-        courts
-      );
+  let bestTeamScore = Infinity;
+  let bestTeams: { teams: Team[]; sitOuts: PlayerId[] } = {
+    teams: [],
+    sitOuts: [],
+  };
+  for (let i = 0; i < GENERATIONS; i++) {
+    await new Promise((resolve) => resolve(undefined));
+    /* Decide who sits out. */
+    const [sitoutPlayers, roundPlayers] = getSitOuts(
+      heuristics,
+      players,
+      courts
+    );
 
-      const sitOuts = sitoutPlayers.map((x) => x.id).sort(); // Sort by ID for stable order.
+    const sitOuts = sitoutPlayers.map((x) => x.id).sort(); // Sort by ID for stable order.
 
-      /* Make partnerships. */
-      // Get ranked preferences for each player.
-      const partnerPreferences = getPartnerPreferences(
-        roundPlayers,
-        heuristics
-      );
-      // Convert to indexes.
-      const playerIdToIndex = roundPlayers.reduce(
-        (indexes: Record<string, string>, player, index) => {
-          indexes[player.id] = index.toString();
-          return indexes;
-        },
-        {}
-      );
-      const partnerPreferenceMatrix = roundPlayers.map((player) => {
-        return partnerPreferences[player.id].map(
-          (preference) => playerIdToIndex[preference.id]
-        );
-      });
-      let teamsByIndex = null;
-      try {
-        // Apply Irving's algorithm.
-        teamsByIndex = stableRoommateProblem(partnerPreferenceMatrix);
-      } catch (e) {
-        return null;
-      }
-
-      // Convert back to player IDs.
-      const teams: Team[] = teamsByIndex.map(([playerIndex, matchIndex]) => {
-        const player = roundPlayers[parseInt(playerIndex)].id;
-        const match = roundPlayers[parseInt(matchIndex)].id;
-        return [player, match];
-      });
-
-      // Count the number of people who are partnering with someone who is at their max (and not because it's their min)
-      const score = teams.reduce((result: number, [a, b]) => {
-        const aPlayedWith = heuristics[a].playedWithCount;
-        const aScore =
-          aPlayedWith[b] === aPlayedWith.max &&
-          aPlayedWith[b] !== aPlayedWith.min
-            ? 1
-            : 0;
-        const bPlayedWith = heuristics[b].playedWithCount;
-        const bScore =
-          bPlayedWith[a] === bPlayedWith.max &&
-          bPlayedWith[a] !== bPlayedWith.min
-            ? 1
-            : 0;
-        return result + aScore + bScore;
-      }, 0);
-
-      return { teams, sitOuts, score };
-    })
-    .filter(isTruthy);
-
-  // Find which generation has the lowest average partnerships.
-  const { teams, sitOuts } = partnerGenerations.reduce(
-    (
-      best: {
-        teams: Team[];
-        sitOuts: string[];
-        score: number;
+    /* Make partnerships. */
+    // Get ranked preferences for each player.
+    const partnerPreferences = getPartnerPreferences(roundPlayers, heuristics);
+    // Convert to indexes.
+    const playerIdToIndex = roundPlayers.reduce(
+      (indexes: Record<string, string>, player, index) => {
+        indexes[player.id] = index.toString();
+        return indexes;
       },
-      current
-    ) => {
-      if (best.score < current.score) return best;
-      return current;
+      {}
+    );
+    const partnerPreferenceMatrix = roundPlayers.map((player) => {
+      return partnerPreferences[player.id].map(
+        (preference) => playerIdToIndex[preference.id]
+      );
+    });
+    let teamsByIndex = null;
+    try {
+      // Apply Irving's algorithm.
+      teamsByIndex = stableRoommateProblem(partnerPreferenceMatrix);
+    } catch (e) {
+      continue;
     }
-  );
+
+    // Convert back to player IDs.
+    const teams: Team[] = teamsByIndex.map(([playerIndex, matchIndex]) => {
+      const player = roundPlayers[parseInt(playerIndex)].id;
+      const match = roundPlayers[parseInt(matchIndex)].id;
+      return [player, match];
+    });
+
+    // Count the number of people who are partnering with someone who is at their max (and not because it's their min)
+    const score = teams.reduce((result: number, [a, b]) => {
+      const aPlayedWith = heuristics[a].playedWithCount;
+      const aScore =
+        aPlayedWith[b] === aPlayedWith.max && aPlayedWith[b] !== aPlayedWith.min
+          ? 1
+          : 0;
+      const bPlayedWith = heuristics[b].playedWithCount;
+      const bScore =
+        bPlayedWith[a] === bPlayedWith.max && bPlayedWith[a] !== bPlayedWith.min
+          ? 1
+          : 0;
+      return result + aScore + bScore;
+    }, 0);
+
+    if (score < bestTeamScore) {
+      bestTeamScore = score;
+      bestTeams = { teams, sitOuts };
+    }
+  }
 
   /* Make matchups. */
-  const matchGenerations = Array.from(new Array(GENERATIONS))
-    .map(() => {
-      const shuffledTeams = shuffle(teams);
-      const teamPreferences = getTeamPreferences(shuffledTeams, heuristics);
-      // Convert to indexes.
-      const teamToIndex = shuffledTeams.reduce(
-        (indexes: Record<string, string>, team, index) => {
-          indexes[team.toString()] = index.toString();
-          return indexes;
-        },
-        {}
+  let bestMatchesScore = Infinity;
+  let bestMatches: Match[] | null = null;
+  for (let i = 0; i < GENERATIONS; i++) {
+    await new Promise((resolve) => resolve(undefined));
+    const shuffledTeams = shuffle(bestTeams.teams);
+    const teamPreferences = getTeamPreferences(shuffledTeams, heuristics);
+    // Convert to indexes.
+    const teamToIndex = shuffledTeams.reduce(
+      (indexes: Record<string, string>, team, index) => {
+        indexes[team.toString()] = index.toString();
+        return indexes;
+      },
+      {}
+    );
+    const teamPreferenceMatrix = shuffledTeams.map((team) => {
+      return teamPreferences[team.toString()].map(
+        (preference) => teamToIndex[preference.toString()]
       );
-      const teamPreferenceMatrix = shuffledTeams.map((team) => {
-        return teamPreferences[team.toString()].map(
-          (preference) => teamToIndex[preference.toString()]
-        );
-      });
+    });
 
-      let matchesByIndex = null;
-      try {
-        // Apply Irving's algorithm.
-        matchesByIndex = stableRoommateProblem(teamPreferenceMatrix);
-      } catch (e) {
-        // Retry if there is no stable match.
-        return null;
+    let matchesByIndex = null;
+    try {
+      // Apply Irving's algorithm.
+      matchesByIndex = stableRoommateProblem(teamPreferenceMatrix);
+    } catch (e) {
+      // Retry if there is no stable match.
+      continue;
+    }
+
+    // Convert back to player IDs.
+    const matches: Match[] = matchesByIndex.map(
+      ([teamIndexA, teamIndexB]): Match => {
+        const teamA = shuffledTeams[parseInt(teamIndexA)].sort();
+        const teamB = shuffledTeams[parseInt(teamIndexB)].sort();
+        return [teamA, teamB].sort() as Match; // Sort for stability.
       }
+    );
 
-      // Convert back to player IDs.
-      const matches: Match[] = matchesByIndex.map(
-        ([teamIndexA, teamIndexB]): Match => {
-          const teamA = shuffledTeams[parseInt(teamIndexA)].sort();
-          const teamB = shuffledTeams[parseInt(teamIndexB)].sort();
-          return [teamA, teamB].sort() as Match; // Sort for stability.
-        }
+    const newHeuristics = getHeuristics(
+      [{ matches, sitOuts: bestTeams.sitOuts }],
+      players,
+      heuristics
+    );
+    const averageScore = players.reduce((score, player) => {
+      const { roundsSincePlayedAgainst } = newHeuristics[player.id];
+      const playerScore = Math.sqrt(
+        players.reduce((sum, opponent) => {
+          if (opponent.id === player.id) return sum;
+          return sum + Math.pow(roundsSincePlayedAgainst[opponent.id], 2);
+        }, 0)
       );
-      return matches;
-    })
-    .filter(isTruthy);
+      return score + playerScore / players.length;
+    }, 0);
 
-  // Get best matchups.
-  const { matches } = matchGenerations.reduce(
-    (best: { score: number; matches: Match[] }, matches) => {
-      const newHeuristics = getHeuristics(
-        [{ matches, sitOuts }],
-        players,
-        heuristics
-      );
-      const averageScore = players.reduce((score, player) => {
-        const { roundsSincePlayedAgainst } = newHeuristics[player.id];
-        const playerScore = Math.sqrt(
-          players.reduce((sum, opponent) => {
-            if (opponent.id === player.id) return sum;
-            return sum + Math.pow(roundsSincePlayedAgainst[opponent.id], 2);
-          }, 0)
-        );
-        return score + playerScore / players.length;
-      }, 0);
-
-      if (best.score < averageScore) return best;
-      return { score: averageScore, matches };
-    },
-    { score: Infinity, matches: [] }
-  );
+    if (averageScore < bestMatchesScore) {
+      bestMatchesScore = averageScore;
+      bestMatches = matches;
+    }
+  }
 
   // Return new round.
-  return { sitOuts, matches };
-};
+  if (!bestMatches) {
+    throw new Error("no matches found");
+  }
+  return { sitOuts: bestTeams.sitOuts, matches: bestMatches };
+}
 
-function getNextBestRound(rounds: Round[], players: Player[], courts: number) {
+async function getNextBestRound(
+  rounds: Round[],
+  players: Player[],
+  courts: number
+): Promise<Round> {
   // Go forward 3 rounds a few times and choose the best direction.
   // Try to avoid local tight spots.
   const heuristics = getHeuristics(rounds, players);
-  const roundGenerations = Array.from(new Array(10)).map(() => {
+  let bestRoundScore: { opponentScore: number; partnerScore: number } = {
+    opponentScore: Infinity,
+    partnerScore: Infinity,
+  };
+  let selectedRound: Round | null = null;
+  for (let attempt = 0; attempt < GENERATIONS * 2; attempt++) {
+    await new Promise((resolve) => resolve(undefined));
     let newHeuristics = heuristics;
-    const newRounds = Array.from(new Array(3)).map(() => {
-      const newRound = getNextRound(rounds, players, courts, heuristics);
+    let newRounds = [];
+    for (let roundGeneration = 0; roundGeneration < 3; roundGeneration++) {
+      const newRound = await getNextRound(rounds, players, courts, heuristics);
       newHeuristics = getHeuristics([newRound], players, newHeuristics);
-      return newRound;
-    });
+      newRounds.push(newRound);
+    }
 
     const partnerScore = players.reduce((sum, player) => {
       return (
@@ -675,16 +671,18 @@ function getNextBestRound(rounds: Round[], players: Player[], courts: number) {
       );
     }, 0);
 
-    return { newRounds, newHeuristics, partnerScore, opponentScore };
-  });
+    if (bestRoundScore.partnerScore < partnerScore) continue;
+    // Partner score better or equal. Opponent score counts for fallback.
+    if (
+      partnerScore < bestRoundScore.partnerScore ||
+      opponentScore < bestRoundScore.opponentScore
+    ) {
+      bestRoundScore = { partnerScore, opponentScore };
+      selectedRound = newRounds[0];
+    }
+  }
 
-  const bestGeneration = roundGenerations.reduce((result, current) => {
-    if (current.partnerScore < result.partnerScore) return current;
-    if (current.opponentScore < result.opponentScore) return current;
-    return result;
-  });
-
-  return bestGeneration.newRounds[0];
+  return selectedRound!;
 }
 
 export { getHeuristics, getNextRound, getNextBestRound };

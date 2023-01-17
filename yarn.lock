@@ -2945,6 +2945,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"circletype@npm:^2.3.0":
+  version: 2.3.0
+  resolution: "circletype@npm:2.3.0"
+  dependencies:
+    core-js: ^2.5.6
+  checksum: 8c82800eb393b66fcfeecc01caa246d00b544f341888d8f7f44f76b5e3e885db5a45fe27c6c31eec4d2286f127d9628ed42cc809fb93ebc591c3d2ea703564d4
+  languageName: node
+  linkType: hard
+
 "cjs-module-lexer@npm:^1.0.0":
   version: 1.2.2
   resolution: "cjs-module-lexer@npm:1.2.2"
@@ -3080,6 +3089,13 @@ __metadata:
   version: 3.27.1
   resolution: "core-js-pure@npm:3.27.1"
   checksum: 571ff8ffc00cba7c1937e70b502a382317d450ef3a38835b0dc4a6a9645ce9853c10a90f71a2027901fb52690a7ba702396f29e125d1b9d6ae3e277db1bcdf57
+  languageName: node
+  linkType: hard
+
+"core-js@npm:^2.5.6":
+  version: 2.6.12
+  resolution: "core-js@npm:2.6.12"
+  checksum: 44fa9934a85f8c78d61e0c8b7b22436330471ffe59ec5076fe7f324d6e8cf7f824b14b1c81ca73608b13bdb0fef035bd820989bf059767ad6fa13123bb8bd016
   languageName: node
   linkType: hard
 
@@ -6186,6 +6202,7 @@ __metadata:
     "@types/react": 18.0.26
     "@types/react-dom": 18.0.10
     "@types/uuid": ^9.0.0
+    circletype: ^2.3.0
     eslint: 8.30.0
     eslint-config-next: 13.1.1
     jest: ^29.3.1
