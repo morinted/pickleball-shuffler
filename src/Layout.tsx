@@ -1,4 +1,4 @@
-import { Button, Navbar, Row } from "@nextui-org/react";
+import { Badge, Button, Navbar, Row } from "@nextui-org/react";
 import Link from "next/link";
 import { Grandstander } from "@next/font/google";
 // @ts-expect-error
@@ -17,7 +17,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   useLoadState();
   return (
     <main>
-      <Navbar isBordered>
+      <Navbar>
         <Navbar.Brand>
           <Link href="/">
             <Row align="center" justify="center">
@@ -42,6 +42,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <br />
                 Doubles
               </div>
+              <Badge
+                isSquared
+                variant="bordered"
+                size="sm"
+                color="secondary"
+                style={{
+                  marginLeft: "1.5rem",
+                }}
+              >
+                Beta
+              </Badge>
             </Row>
           </Link>
         </Navbar.Brand>

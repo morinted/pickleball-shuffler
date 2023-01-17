@@ -690,8 +690,6 @@ async function getNextBestRound(
     }
   }
 
-  console.log(bestRoundScore, worstRoundScore);
-
   return selectedRound!;
 }
 

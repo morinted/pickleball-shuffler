@@ -1,5 +1,6 @@
 import {
   Button,
+  Col,
   Container,
   Input,
   Row,
@@ -60,31 +61,31 @@ function NewGame() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <Container>
+      <Container xs>
         <Spacer y={1} />
         <Row justify="center" align="center">
-          <Textarea
-            ref={playersRef}
-            id="player-input"
-            itemID="player-input-label"
-            label="Who's playing? Put one name per line."
-            placeholder={"Jo Swift\nKathryn Lob"}
-          />
-        </Row>
-        <Spacer y={1} />
-        <Row justify="center" align="center">
-          <Input
-            id="court-input"
-            label="How many courts?"
-            type="number"
-            min={1}
-            value={courts}
-            onChange={(e) => setCourts(e.target.value)}
-          />
-        </Row>
-        <Spacer y={0.5} />
-        <Row justify="center" align="center">
-          <Button onPress={() => handleNewGame()}>Let's play!</Button>
+          <Col>
+            <Textarea
+              ref={playersRef}
+              id="player-input"
+              itemID="player-input-label"
+              label="Who's playing? Put one name per line."
+              placeholder={"Jo Swift\nKathryn Lob"}
+              fullWidth
+            />
+            <Spacer y={1} />
+            <Input
+              id="court-input"
+              label="How many courts?"
+              type="number"
+              min={1}
+              value={courts}
+              onChange={(e) => setCourts(e.target.value)}
+              fullWidth
+            />
+            <Spacer y={0.5} />
+            <Button onPress={() => handleNewGame()}>Let's play!</Button>
+          </Col>
         </Row>
       </Container>
     </>
