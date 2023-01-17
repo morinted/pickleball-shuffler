@@ -186,7 +186,7 @@ export default function Rounds() {
         <Spacer y={1} />
         <Row justify="space-around">
           <Pagination
-            total={state.rounds.length}
+            total={state.rounds.length || 1}
             page={roundIndex + 1}
             onChange={(page: number) => setRoundIndex(page - 1)}
           />
