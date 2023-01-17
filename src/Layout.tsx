@@ -29,14 +29,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   textAlign: "center",
                   lineHeight: "1.15rem",
                   fontSize: "1.5rem",
-                  marginLeft: "0.5rem",
+                  marginLeft: "0.7rem",
                   marginTop: "0.5rem",
                   color: "black",
                   fontWeight: 600,
                 }}
               >
                 <div
-                  style={{ fontSize: "1.1em", height: "0.2em" }}
+                  style={{
+                    fontSize: "1.1em",
+                    height: "0.2em",
+                    marginLeft: "-0.2rem",
+                  }}
                   id="jumbled"
                 >
                   Jumbled
