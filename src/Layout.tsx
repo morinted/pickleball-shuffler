@@ -5,6 +5,7 @@ import { Grandstander } from "@next/font/google";
 import CircleType from "circletype";
 import { useEffect } from "react";
 import { useLoadState } from "./useShuffler";
+import { useRouter } from "next/router";
 
 const grandstander = Grandstander({ subsets: ["latin"] });
 
@@ -14,6 +15,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       .radius(200)
       .forceHeight(false);
   }, []);
+  const router = useRouter();
   useLoadState();
   return (
     <main>
@@ -58,13 +60,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </Navbar.Brand>
 
         <Navbar.Content>
-          <Navbar.Item id="new-game-item">
-            <Link href="/new" id="new-game-button">
-              <Button auto flat>
-                New game
-              </Button>
-            </Link>
-          </Navbar.Item>
+          {router.asPath !== "/new" && (
+            <Navbar.Item id="new-game-item">
+              <Link href="/new" id="new-game-button">
+                <Button auto flat>
+                  New game
+                </Button>
+              </Link>
+            </Navbar.Item>
+          )}
         </Navbar.Content>
       </Navbar>
       {children}

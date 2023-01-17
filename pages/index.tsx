@@ -53,16 +53,29 @@ export default function Home() {
 
             <Spacer y={2} />
             <Text h3>Compatible sports</Text>
-            <Text as="div">
-              This website is for any sport where you play as teams of two:
-              <ul>
-                <li>🥒 Pickleball</li>
-                <li>🎾 Padel & Tennis</li>
-                <li>🏓 Table tennis (ping-pong)</li>
-                <li>🏸 Badminton</li>
-                <li>🏐 Roundnet (spike ball)</li>
-              </ul>
+            <Text>
+              This site is for any sport where you play in teams of two:
             </Text>
+            <ul>
+              <li>
+                <Text>🥒 Pickleball</Text>
+              </li>
+              <li>
+                <Text>🎾 Tennis</Text>
+              </li>
+              <li>
+                <Text>🏓 Table tennis (ping-pong)</Text>
+              </li>
+              <li>
+                <Text>🏸 Badminton</Text>
+              </li>
+              <li>
+                <Text>🎾 Padel</Text>
+              </li>
+              <li>
+                <Text>🏐 Roundnet (spike ball)</Text>
+              </li>
+            </ul>
 
             <Spacer y={1.5} />
 
@@ -93,7 +106,7 @@ export default function Home() {
             </Text>
           </Col>
         </Row>
-        <Spacer y={0.5} />
+        <Spacer y={2} />
       </Container>
     </>
   );
