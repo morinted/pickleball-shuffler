@@ -1,5 +1,4 @@
-import { Spacer } from "@nextui-org/react";
-import { Player } from "./matching/heuristics";
+import { BadgeGroup } from "./BadgeGroup";
 import { PlayerBadge } from "./PlayerBadge";
 
 export default function TeamBadges({
@@ -11,14 +10,13 @@ export default function TeamBadges({
 }) {
   const [player1, player2] = team;
   return (
-    <div>
+    <BadgeGroup>
       <PlayerBadge color={isHome ? "primary" : "secondary"}>
         {player1}
       </PlayerBadge>
-      <Spacer x={0.5} inline />
       <PlayerBadge color={isHome ? "primary" : "secondary"}>
         {player2}
       </PlayerBadge>
-    </div>
+    </BadgeGroup>
   );
 }

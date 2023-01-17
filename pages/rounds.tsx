@@ -9,9 +9,13 @@ import {
   Badge,
   Col,
   Grid,
+  Modal,
+  Checkbox,
 } from "@nextui-org/react";
 import Head from "next/head";
 import React, { Fragment, useEffect, useState } from "react";
+import { BadgeGroup } from "../src/BadgeGroup";
+import { PlayerId } from "../src/matching/heuristics";
 import { PlayerBadge } from "../src/PlayerBadge";
 import TeamBadges from "../src/TeamBadges";
 import {
@@ -24,6 +28,9 @@ export default function Rounds() {
   const state = useShufflerState();
   const dispatch = useShufflerDispatch();
 
+  const [sitoutModal, setSitoutModal] = useState(false);
+  const [volunteerSitouts, setVolunteerSitouts] = useState<PlayerId[]>([]);
+
   const [roundIndex, setRoundIndex] = useState(0);
   useEffect(() => {
     if (state.rounds.length && roundIndex === 0) {
@@ -35,6 +42,18 @@ export default function Rounds() {
   const playerName = (id: string) => {
     return state.playersById[id].name;
   };
+
+  const handleSitoutEdit = () => setSitoutModal(true);
+  const handleSitoutClose = () => {
+    setVolunteerSitouts([]);
+    setSitoutModal(false);
+  };
+  const handleSitoutRegenerate = async () => {
+    setRoundIndex(0);
+    await newRound(dispatch, state, { replace: true, volunteerSitouts });
+    handleSitoutClose();
+  };
+
   return (
     <>
       <Head>
@@ -44,6 +63,49 @@ export default function Rounds() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <Container>
+        <Modal
+          scroll
+          closeButton
+          aria-labelledby="sitout-modal-title"
+          open={sitoutModal}
+          onClose={handleSitoutClose}
+        >
+          <Modal.Header>
+            <Text id="sitout-modal-title" h3>
+              Edit sit outs
+            </Text>
+          </Modal.Header>
+          <Modal.Body>
+            <Text>
+              Someone has to sit out? Select who and reshuffle the current
+              round.
+            </Text>
+            <Checkbox.Group
+              label="Volunteers to sit out"
+              value={volunteerSitouts}
+              onChange={setVolunteerSitouts}
+            >
+              {state.players.map((player) => (
+                <Checkbox value={player.id} key={player.id}>
+                  {player.name}
+                </Checkbox>
+              ))}
+            </Checkbox.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button auto flat onPress={handleSitoutClose}>
+              Close
+            </Button>
+            <Button
+              auto
+              onPress={handleSitoutRegenerate}
+              color="gradient"
+              disabled={!volunteerSitouts.length}
+            >
+              Re-jumble!
+            </Button>
+          </Modal.Footer>
+        </Modal>
         <Row justify="center" align="center">
           <Col>
             <Spacer y={1} />
@@ -59,16 +121,33 @@ export default function Rounds() {
                   textAlign: "center",
                 }}
               >
-                <Text h4>Sitting out</Text>
-                {sitOuts
-                  .map(playerName)
-                  .sort()
-                  .map((name) => (
-                    <Fragment key={name}>
-                      <Spacer x={0.5} inline />
-                      <PlayerBadge color="default">{name}</PlayerBadge>
-                    </Fragment>
-                  ))}
+                <Text h4>
+                  Sitting out
+                  <Spacer x={0.5} inline />
+                  <div
+                    style={{ display: "inline-block", verticalAlign: "middle" }}
+                  >
+                    <Button
+                      auto
+                      size="sm"
+                      color="secondary"
+                      onPress={handleSitoutEdit}
+                    >
+                      Edit
+                    </Button>
+                  </div>
+                  <Spacer y={0.25} />
+                </Text>
+                <BadgeGroup>
+                  {sitOuts
+                    .map(playerName)
+                    .sort()
+                    .map((name) => (
+                      <PlayerBadge key={name} color="default">
+                        {name}
+                      </PlayerBadge>
+                    ))}
+                </BadgeGroup>
               </div>
               <Spacer y={0.25} />
             </Col>
@@ -120,6 +199,7 @@ export default function Rounds() {
               newRound(dispatch, state, { volunteerSitouts: [] });
               setRoundIndex(state.rounds.length);
             }}
+            color="gradient"
           >
             Generate round {state.rounds.length + 1}
           </Button>

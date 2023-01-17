@@ -161,4 +161,24 @@ describe("calculateHeuristics()", () => {
     expect(uniqueSits.size).toEqual(5);
     expect(uniqueTeams.size).toEqual(10);
   });
+  test("volunteer 1/2 sit outs", async () => {
+    const players = sampleNames.slice(0, 6).map((name) => ({ name, id: name }));
+    const sitOut = players[0];
+    const round = await getNextBestRound([], players, 1, [sitOut]);
+    expect(round.sitOuts).toContain(sitOut.id);
+    expect(round.sitOuts).toHaveLength(2);
+    expect(round.sitOuts[0]).not.toEqual(round.sitOuts[1]);
+  });
+  test("volunteer entire court sit out", async () => {
+    const players = sampleNames
+      .slice(0, 13)
+      .map((name) => ({ name, id: name }));
+    const volunteers = players.slice(0, 4);
+    const round = await getNextBestRound([], players, 3, volunteers);
+    expect(round.matches).toHaveLength(2);
+    expect(round.sitOuts).toHaveLength(5);
+    expect(round.sitOuts).toEqual(
+      expect.arrayContaining(volunteers.map(({ id }) => id))
+    );
+  });
 });

@@ -416,11 +416,15 @@ const pickFromListBiasBeginning = <T,>(
  * Choose which players sit out.
  */
 const getSitOuts = (
-  // TODO: add volunteers
   heuristics: PlayerHeuristicsDictionary,
-  players: Player[],
-  courts: number
+  allPlayers: Player[],
+  courts: number,
+  volunteers: Player[] = []
 ) => {
+  // Remove volunteer sitouts from possible players.
+  const players = allPlayers.filter((player) =>
+    volunteers.every((volunteer) => volunteer.id !== player.id)
+  );
   const capacity = courts * 4;
   const sitouts =
     players.length > capacity
@@ -470,7 +474,7 @@ const getSitOuts = (
 
   return [
     // Sitouts: mandatory (if applicable) and picked.
-    [...mandatorySitouts, ...picked].sort(),
+    [...volunteers, ...mandatorySitouts, ...picked].sort(),
     // Players: remaining from picked, plus all those who have already sat out if we didn't pick from that group.
     shuffle([...remaining, ...(mandatorySitouts.length ? [] : alreadySatOut)]),
   ];
@@ -483,6 +487,7 @@ async function getNextRound(
   rounds: Round[],
   players: Player[],
   courts: number,
+  volunteerSitouts?: Player[],
   heuristics: PlayerHeuristicsDictionary = getHeuristics(rounds, players)
 ): Promise<[Round, { bestTeamScore: number; bestMatchesScore: number }]> {
   // TODO: remove dupes
@@ -498,7 +503,8 @@ async function getNextRound(
     const [sitoutPlayers, roundPlayers] = getSitOuts(
       heuristics,
       players,
-      courts
+      courts,
+      volunteerSitouts
     );
 
     const sitOuts = sitoutPlayers.map((x) => x.id).sort(); // Sort by ID for stable order.
@@ -633,7 +639,8 @@ async function getNextRound(
 async function getNextBestRound(
   rounds: Round[],
   players: Player[],
-  courts: number
+  courts: number,
+  volunteerSitouts?: Player[]
 ): Promise<Round> {
   // Go forward 3 rounds a few times and choose the best direction.
   // Try to avoid local tight spots.
@@ -642,12 +649,7 @@ async function getNextBestRound(
     opponentScore: Infinity,
     partnerScore: Infinity,
   };
-  let worstRoundScore: { opponentScore: number; partnerScore: number } = {
-    opponentScore: 0,
-    partnerScore: 0,
-  };
   let selectedRound: Round | null = null;
-  const lastRound = rounds.length === 8;
   for (let attempt = 0; attempt < ROUND_ATTEMPTS; attempt++) {
     await new Promise((resolve) => resolve(undefined));
     let newHeuristics = heuristics;
@@ -664,6 +666,7 @@ async function getNextBestRound(
           rounds,
           players,
           courts,
+          volunteerSitouts,
           heuristics
         );
         newHeuristics = getHeuristics([newRound], players, newHeuristics);

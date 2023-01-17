@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 
 type NewRoundOptions = {
   volunteerSitouts: PlayerId[];
+  replace?: boolean;
 };
 
 type NewGameOptions = {
@@ -154,9 +155,11 @@ function shufflerReducer(state: State, action: Action) {
       return loadFromCache(state);
     }
     case "new-round-start":
+      const { replace } = action.payload;
       return {
         ...state,
         generating: true,
+        rounds: replace ? state.rounds.slice(0, -1) : state.rounds,
       };
     case "new-round": {
       return cacheState({
@@ -175,11 +178,17 @@ async function newRound(
   payload: NewRoundOptions
 ) {
   dispatch({ type: "new-round-start", payload });
+  const rounds = payload.replace ? state.rounds.slice(0, -1) : state.rounds;
+  const volunteerSitouts: Player[] = payload.volunteerSitouts.map((id) => ({
+    id,
+    name: state.playersById[id].name,
+  }));
   try {
     const nextRound = await getNextBestRound(
-      state.rounds,
+      rounds,
       state.players,
-      state.courts
+      state.courts,
+      volunteerSitouts
     );
     dispatch({ type: "new-round", payload: nextRound });
   } catch (error) {
@@ -193,7 +202,9 @@ async function newGame(
   payload: NewGameOptions
 ) {
   const { courts, names } = payload;
-  const players = createPlayers(names);
+  const players = createPlayers(names).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
   const playersById = getPlayersById(state.playersById, players);
   dispatch({
     type: "new-game-start",
