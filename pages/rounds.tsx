@@ -183,7 +183,7 @@ export default function Rounds() {
             }}
           />
         </Row>
-        <Spacer y={1.75} />
+        <Spacer y={1.5} />
         <Row justify="space-around">
           <Button
             size="lg"

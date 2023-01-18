@@ -71,6 +71,8 @@ function NewGame() {
               itemID="player-input-label"
               label="Who's playing? Put one name per line."
               placeholder={"Jo Swift\nKathryn Lob"}
+              minRows={6}
+              maxRows={14}
               fullWidth
             />
             <Spacer y={1} />
