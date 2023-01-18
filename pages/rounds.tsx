@@ -13,7 +13,7 @@ import {
   Checkbox,
 } from "@nextui-org/react";
 import Head from "next/head";
-import React, { Fragment, useEffect, useState } from "react";
+import React, { Fragment, useEffect, useRef, useState } from "react";
 import { BadgeGroup } from "../src/BadgeGroup";
 import { PlayerId } from "../src/matching/heuristics";
 import { PlayerBadge } from "../src/PlayerBadge";
@@ -32,9 +32,12 @@ export default function Rounds() {
   const [volunteerSitouts, setVolunteerSitouts] = useState<PlayerId[]>([]);
 
   const [roundIndex, setRoundIndex] = useState(0);
+
+  // Handle rounds loading into state.
   useEffect(() => {
     if (state.rounds.length && roundIndex === 0) {
-      setRoundIndex(state.rounds.length - 1);
+      setRoundIndex(Math.max(state.rounds.length - 1, 0));
+      window.scrollTo(0, 0);
     }
   }, [state.rounds]);
   const round = state.rounds[roundIndex];
@@ -76,8 +79,8 @@ export default function Rounds() {
             </Text>
           </Modal.Header>
           <Modal.Body>
-            <Text>
-              Someone has to sit out? Select who and reshuffle the current
+            <Text size="$lg">
+              Someone wants to sit out? Select who and reshuffle the current
               round.
             </Text>
             <Checkbox.Group
@@ -112,21 +115,13 @@ export default function Rounds() {
             <Text h3>Round {roundIndex + 1}</Text>
           </Col>
         </Row>
-        <Row align="center" justify="center">
+        <Grid.Container gap={2} justify="center">
           {!!sitOuts.length && (
-            <Col>
-              <div
-                style={{
-                  margin: "0 auto",
-                  textAlign: "center",
-                }}
-              >
-                <Text h4>
-                  Sitting out
-                  <Spacer x={0.5} inline />
-                  <div
-                    style={{ display: "inline-block", verticalAlign: "middle" }}
-                  >
+            <Grid xs={12} sm={6} md={4} xl={3}>
+              <Card variant="flat">
+                <Card.Body>
+                  <Row justify="space-between">
+                    <Text h4>Sitting out</Text>
                     <Button
                       auto
                       size="sm"
@@ -135,26 +130,22 @@ export default function Rounds() {
                     >
                       Edit
                     </Button>
-                  </div>
-                  <Spacer y={0.25} />
-                </Text>
-                <BadgeGroup>
-                  {sitOuts
-                    .map(playerName)
-                    .sort()
-                    .map((name) => (
-                      <PlayerBadge key={name} color="default">
-                        {name}
-                      </PlayerBadge>
-                    ))}
-                </BadgeGroup>
-              </div>
-              <Spacer y={0.25} />
-            </Col>
+                  </Row>
+                  <Spacer y={0.5} />
+                  <BadgeGroup>
+                    {sitOuts
+                      .map(playerName)
+                      .sort()
+                      .map((name) => (
+                        <PlayerBadge key={name} color="default">
+                          {name}
+                        </PlayerBadge>
+                      ))}
+                  </BadgeGroup>
+                </Card.Body>
+              </Card>
+            </Grid>
           )}
-        </Row>
-
-        <Grid.Container gap={2} justify="center">
           {matches.map(([teamA, teamB], index) => {
             return (
               <Grid
@@ -164,7 +155,6 @@ export default function Rounds() {
                 md={4}
                 xl={3}
               >
-                <Spacer y={1} />
                 <Card variant="bordered">
                   <Card.Body>
                     <Text h4>Court {index + 1}</Text>
@@ -188,23 +178,32 @@ export default function Rounds() {
           <Pagination
             total={state.rounds.length || 1}
             page={roundIndex + 1}
-            onChange={(page: number) => setRoundIndex(page - 1)}
+            onChange={(page: number) => {
+              setRoundIndex(page - 1);
+            }}
           />
         </Row>
-        <Spacer y={1} />
+        <Spacer y={1.75} />
         <Row justify="space-around">
           <Button
+            size="lg"
             disabled={state.generating}
-            onPress={() => {
-              newRound(dispatch, state, { volunteerSitouts: [] });
+            onPress={async () => {
+              // Waiting for a little bit of time allows the button to animate
+              // and prevents issues with pagination presses.
+              await new Promise((resolve) =>
+                setTimeout(() => resolve(true), 250)
+              );
+              await newRound(dispatch, state, { volunteerSitouts: [] });
               setRoundIndex(state.rounds.length);
+              window.scrollTo(0, 0);
             }}
             color="gradient"
           >
             Generate round {state.rounds.length + 1}
           </Button>
         </Row>
-        <Spacer y={1} />
+        <Spacer y={2} />
       </Container>
     </>
   );
