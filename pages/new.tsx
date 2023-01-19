@@ -5,6 +5,7 @@ import {
   Input,
   Row,
   Spacer,
+  Text,
   Textarea,
   useInput,
 } from "@nextui-org/react";
@@ -12,6 +13,7 @@ import dynamic from "next/dynamic";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
+import { Home, People } from "react-iconly";
 import {
   newGame,
   useShufflerDispatch,
@@ -40,10 +42,14 @@ function NewGame() {
 
   const handleNewGame = () => {
     if (!playersRef.current) return;
-    const names = playersRef.current.value
-      .split("\n")
-      .map((x) => x.trim())
-      .filter((x) => !!x);
+    const names = Array.from(
+      new Set(
+        playersRef.current.value
+          .split("\n")
+          .map((x) => x.trim())
+          .filter((x) => !!x)
+      )
+    );
     if (names.length < 4) return;
     const courtCount = parseInt(courts);
     if (courtCount < 1) return;
@@ -53,6 +59,7 @@ function NewGame() {
     });
     router.push("/rounds");
   };
+
   return (
     <>
       <Head>
@@ -65,28 +72,46 @@ function NewGame() {
         <Spacer y={1} />
         <Row justify="center" align="center">
           <Col>
-            <Textarea
-              ref={playersRef}
-              id="player-input"
-              itemID="player-input-label"
-              label="Who's playing? Put one name per line."
-              placeholder={"Jo Swift\nKathryn Lob"}
-              initialValue={courts}
-              minRows={6}
-              maxRows={14}
-              fullWidth
-            />
+            <label>
+              <Row align="center">
+                <People />
+                <Spacer x={0.25} inline />
+                <Text id="players-label">
+                  Who's playing? One person per line.
+                </Text>
+              </Row>
+              <Spacer y={0.5} />
+              <Textarea
+                autoFocus
+                ref={playersRef}
+                id="player-input"
+                aria-labelledby="players-label"
+                itemID="player-input-label"
+                placeholder={"Jo Swift\nKathryn Lob"}
+                minRows={6}
+                maxRows={14}
+                fullWidth
+              />
+            </label>
             <Spacer y={1} />
-            <Input
-              id="court-input"
-              label="How many courts?"
-              type="number"
-              min={1}
-              value={courts}
-              onChange={(e) => setCourts(e.target.value)}
-              fullWidth
-            />
-            <Spacer y={0.5} />
+            <label>
+              <Row align="center">
+                <Home />
+                <Spacer x={0.25} inline />
+                <Text id="courts-label">How many courts are available?</Text>
+              </Row>
+              <Spacer y={0.5} />
+              <Input
+                id="court-input"
+                aria-labelledby="courts-label"
+                type="number"
+                min={1}
+                value={courts}
+                onChange={(e) => setCourts(e.target.value)}
+                fullWidth
+              />
+            </label>
+            <Spacer y={1} />
             <Button onPress={() => handleNewGame()}>Let's play!</Button>
           </Col>
         </Row>
@@ -96,4 +121,4 @@ function NewGame() {
 }
 
 //
-export default dynamic(() => Promise.resolve(NewGame), { ssr: false });
+export default NewGame;

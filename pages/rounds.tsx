@@ -6,17 +6,16 @@ import {
   Spacer,
   Text,
   Pagination,
-  Badge,
-  Col,
   Grid,
-  Modal,
-  Checkbox,
 } from "@nextui-org/react";
 import Head from "next/head";
 import React, { Fragment, useEffect, useRef, useState } from "react";
+import { Edit, Home, People } from "react-iconly";
 import { BadgeGroup } from "../src/BadgeGroup";
 import { PlayerId } from "../src/matching/heuristics";
 import { PlayerBadge } from "../src/PlayerBadge";
+import { PlayersModal } from "../src/PlayersModal";
+import { SitoutsModal } from "../src/SitoutsModal";
 import TeamBadges from "../src/TeamBadges";
 import {
   newRound,
@@ -29,6 +28,8 @@ export default function Rounds() {
   const dispatch = useShufflerDispatch();
 
   const [sitoutModal, setSitoutModal] = useState(false);
+  const [playersModal, setPlayersModal] = useState(false);
+
   const [volunteerSitouts, setVolunteerSitouts] = useState<PlayerId[]>([]);
 
   const [roundIndex, setRoundIndex] = useState(0);
@@ -46,17 +47,6 @@ export default function Rounds() {
     return state.playersById[id].name;
   };
 
-  const handleSitoutEdit = () => setSitoutModal(true);
-  const handleSitoutClose = () => {
-    setVolunteerSitouts([]);
-    setSitoutModal(false);
-  };
-  const handleSitoutRegenerate = async () => {
-    setRoundIndex(0);
-    await newRound(dispatch, state, { replace: true, volunteerSitouts });
-    handleSitoutClose();
-  };
-
   return (
     <>
       <Head>
@@ -66,70 +56,78 @@ export default function Rounds() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <Container>
-        <Modal
-          scroll
-          closeButton
-          aria-labelledby="sitout-modal-title"
+        <SitoutsModal
           open={sitoutModal}
-          onClose={handleSitoutClose}
+          onClose={() => setSitoutModal(false)}
+          onSubmit={async (volunteerSitouts) => {
+            setRoundIndex(0);
+            await newRound(dispatch, state, {
+              replace: true,
+              volunteerSitouts,
+            });
+            setSitoutModal(false);
+          }}
+        />
+        <PlayersModal
+          open={playersModal}
+          onClose={() => setPlayersModal(false)}
+          onSubmit={async (newPlayers) => {
+            setRoundIndex(0);
+            // TODO
+            setPlayersModal(false);
+          }}
+        />
+        <Spacer y={1} />
+        <Row
+          align="center"
+          css={{
+            gap: "0.5rem",
+          }}
         >
-          <Modal.Header>
-            <Text id="sitout-modal-title" h3>
-              Edit sit outs
-            </Text>
-          </Modal.Header>
-          <Modal.Body>
-            <Text size="$lg">
-              Someone wants to sit out? Select who and reshuffle the current
-              round.
-            </Text>
-            <Checkbox.Group
-              label="Volunteers to sit out"
-              value={volunteerSitouts}
-              onChange={setVolunteerSitouts}
-            >
-              {state.players.map((player) => (
-                <Checkbox value={player.id} key={player.id}>
-                  {player.name}
-                </Checkbox>
-              ))}
-            </Checkbox.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button auto flat onPress={handleSitoutClose}>
-              Close
-            </Button>
-            <Button
-              auto
-              onPress={handleSitoutRegenerate}
-              color="gradient"
-              disabled={!volunteerSitouts.length}
-            >
-              Re-jumble!
-            </Button>
-          </Modal.Footer>
-        </Modal>
-        <Row justify="center" align="center">
-          <Col>
-            <Spacer y={1} />
-            <Text h3>Round {roundIndex + 1}</Text>
-          </Col>
+          <Text
+            css={{
+              flexGrow: 1,
+            }}
+            h3
+          >
+            Round {roundIndex + 1}
+          </Text>
+          <Button
+            aria-label={`${state.players.length} players`}
+            auto
+            icon={<People />}
+            css={{ marginTop: "-0.75rem" }}
+            onPress={() => setPlayersModal(true)}
+          >
+            {state.players.length}
+          </Button>
+          <Button
+            aria-label={`${state.players.length} players`}
+            auto
+            icon={<Home />}
+            css={{ marginTop: "-0.75rem" }}
+            onPress={() => setPlayersModal(true)}
+          >
+            {state.courts}
+          </Button>
         </Row>
         <Grid.Container gap={2} justify="center">
           {!!sitOuts.length && (
             <Grid xs={12} sm={6} md={4} xl={3}>
               <Card variant="flat">
                 <Card.Body>
-                  <Row justify="space-between">
+                  <Row justify="space-between" align="center">
                     <Text h4>Sitting out</Text>
                     <Button
                       auto
-                      size="sm"
-                      color="secondary"
-                      onPress={handleSitoutEdit}
-                    >
-                      Edit
-                    </Button>
+                      css={{
+                        marginTop: "-1rem",
+                      }}
+                      flat
+                      color="primary"
+                      onPress={() => setSitoutModal(true)}
+                      icon={<Edit label="Edit sit outs" />}
+                    />
                   </Row>
                   <Spacer y={0.5} />
                   <BadgeGroup>
