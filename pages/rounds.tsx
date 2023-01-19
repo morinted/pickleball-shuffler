@@ -12,12 +12,14 @@ import Head from "next/head";
 import React, { Fragment, useEffect, useRef, useState } from "react";
 import { Edit, Home, People } from "react-iconly";
 import { BadgeGroup } from "../src/BadgeGroup";
+import { CourtsModal } from "../src/CourtsModal";
 import { PlayerId } from "../src/matching/heuristics";
 import { PlayerBadge } from "../src/PlayerBadge";
 import { PlayersModal } from "../src/PlayersModal";
 import { SitoutsModal } from "../src/SitoutsModal";
 import TeamBadges from "../src/TeamBadges";
 import {
+  editCourts,
   newRound,
   useShufflerDispatch,
   useShufflerState,
@@ -29,8 +31,7 @@ export default function Rounds() {
 
   const [sitoutModal, setSitoutModal] = useState(false);
   const [playersModal, setPlayersModal] = useState(false);
-
-  const [volunteerSitouts, setVolunteerSitouts] = useState<PlayerId[]>([]);
+  const [courtsModal, setCourtsModal] = useState(false);
 
   const [roundIndex, setRoundIndex] = useState(0);
 
@@ -62,7 +63,7 @@ export default function Rounds() {
           onSubmit={async (volunteerSitouts) => {
             setRoundIndex(0);
             await newRound(dispatch, state, {
-              replace: true,
+              regenerate: true,
               volunteerSitouts,
             });
             setSitoutModal(false);
@@ -75,6 +76,18 @@ export default function Rounds() {
             setRoundIndex(0);
             // TODO
             setPlayersModal(false);
+          }}
+        />
+        <CourtsModal
+          open={courtsModal}
+          onClose={() => setCourtsModal(false)}
+          onSubmit={async (courts, regenerate) => {
+            setRoundIndex(0);
+            await editCourts(dispatch, state, {
+              regenerate,
+              courts,
+            });
+            setCourtsModal(false);
           }}
         />
         <Spacer y={1} />
@@ -92,24 +105,36 @@ export default function Rounds() {
           >
             Round {roundIndex + 1}
           </Text>
-          <Button
-            aria-label={`${state.players.length} players`}
-            auto
-            icon={<People />}
-            css={{ marginTop: "-0.75rem" }}
-            onPress={() => setPlayersModal(true)}
-          >
-            {state.players.length}
-          </Button>
-          <Button
-            aria-label={`${state.players.length} players`}
-            auto
-            icon={<Home />}
-            css={{ marginTop: "-0.75rem" }}
-            onPress={() => setPlayersModal(true)}
-          >
-            {state.courts}
-          </Button>
+          {roundIndex === state.rounds.length - 1 ? (
+            <>
+              <Button
+                aria-label={`${state.players.length} players`}
+                auto
+                icon={<People />}
+                css={{ marginTop: "-0.75rem" }}
+                onPress={() => setPlayersModal(true)}
+              >
+                {state.players.length}
+              </Button>
+              <Button
+                aria-label={`${state.players.length} players`}
+                auto
+                icon={<Home />}
+                css={{ marginTop: "-0.75rem" }}
+                onPress={() => setCourtsModal(true)}
+              >
+                {state.courts}
+              </Button>
+            </>
+          ) : (
+            <Button
+              onPress={() => setRoundIndex(state.rounds.length - 1)}
+              flat
+              css={{ marginTop: "-0.75rem" }}
+            >
+              Jump to latest round
+            </Button>
+          )}
         </Row>
         <Grid.Container gap={2} justify="center">
           {!!sitOuts.length && (

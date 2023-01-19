@@ -16,7 +16,7 @@ export function PlayersModal({
   const [players, setPlayers] = useState<Player[]>([]);
   useEffect(() => {
     if (open) {
-      setPlayers(state.players);
+      setPlayers(state.players.map((id) => state.playersById[id]));
     }
   }, [open]);
 

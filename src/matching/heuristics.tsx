@@ -38,8 +38,8 @@ const ROUND_ATTEMPTS = 25;
  * Populate default player scores for each person.
  */
 const getDefaultPlayerRecords = (
-  players: Player[],
-  currentPlayer: Player,
+  players: PlayerId[],
+  currentPlayer: PlayerId,
   previousHeuristics?: PlayerHeuristicsDictionary
 ) => {
   const { highDefaults, lowDefaults } = players.reduce(
@@ -50,9 +50,9 @@ const getDefaultPlayerRecords = (
       },
       player
     ) => {
-      if (player.id === currentPlayer.id) return result;
-      result.highDefaults[player.id] = INFINITY;
-      result.lowDefaults[player.id] = 0;
+      if (player === currentPlayer) return result;
+      result.highDefaults[player] = INFINITY;
+      result.lowDefaults[player] = 0;
       return result;
     },
     { highDefaults: {}, lowDefaults: {} }
@@ -62,7 +62,7 @@ const getDefaultPlayerRecords = (
   ): PlayerRecords => {
     const high =
       stat === "roundsSincePlayedAgainst" || stat === "roundsSincePlayedWith";
-    const previous = previousHeuristics?.[currentPlayer.id]?.[stat];
+    const previous = previousHeuristics?.[currentPlayer]?.[stat];
     const defaults = high ? highDefaults : lowDefaults;
     const defaultMinMax = {
       min: high ? INFINITY : 0,
@@ -73,13 +73,13 @@ const getDefaultPlayerRecords = (
     }
     return players.reduce(
       (result: PlayerRecords, player) => {
-        if (player.id === currentPlayer.id) return result;
-        if (player.id in previous) {
-          result[player.id] = previous?.[player.id];
+        if (player === currentPlayer) return result;
+        if (player in previous) {
+          result[player] = previous?.[player];
           return result;
         }
         // This is a new player, so they will have the default.
-        result[player.id] = defaults[player.id];
+        result[player] = defaults[player];
         if (high) {
           result.max = INFINITY;
         } else {
@@ -93,8 +93,8 @@ const getDefaultPlayerRecords = (
 };
 
 const getDefaultHeuristics = (
-  players: Player[],
-  currentPlayer: Player,
+  players: PlayerId[],
+  currentPlayer: PlayerId,
   previousHeuristics?: PlayerHeuristicsDictionary
 ): PlayerHeuristics => {
   const defaultRecords = getDefaultPlayerRecords(
@@ -108,8 +108,8 @@ const getDefaultHeuristics = (
     playedAgainstCount: defaultRecords("playedAgainstCount"),
     roundsSincePlayedAgainst: defaultRecords("roundsSincePlayedAgainst"),
     roundsSinceSitOut:
-      previousHeuristics?.[currentPlayer.id]?.roundsSinceSitOut ?? INFINITY,
-    sitOutCount: previousHeuristics?.[currentPlayer.id]?.sitOutCount ?? 0,
+      previousHeuristics?.[currentPlayer]?.roundsSinceSitOut ?? INFINITY,
+    sitOutCount: previousHeuristics?.[currentPlayer]?.sitOutCount ?? 0,
   };
 };
 
@@ -119,10 +119,10 @@ const getDefaultHeuristics = (
  * Ideally people who I've not played with in a while, followed by people that I haven't played against recently.
  */
 const sortPartnerCompatibility =
-  (player: Player, heuristics: PlayerHeuristicsDictionary) =>
-  (a: Player, b: Player) => {
-    const aScore = partnerScore(player.id, heuristics, a.id);
-    const bScore = partnerScore(player.id, heuristics, b.id);
+  (player: PlayerId, heuristics: PlayerHeuristicsDictionary) =>
+  (a: PlayerId, b: PlayerId) => {
+    const aScore = partnerScore(player, heuristics, a);
+    const bScore = partnerScore(player, heuristics, b);
     return bScore - aScore;
   };
 
@@ -204,12 +204,12 @@ const minMaxHeuristicTypes: Array<
  */
 const getHeuristics = (
   rounds: Round[],
-  players: Player[],
+  players: PlayerId[],
   previousHeuristics?: PlayerHeuristicsDictionary
 ) => {
   const heuristics: PlayerHeuristicsDictionary = players.reduce(
     (result: PlayerHeuristicsDictionary, currentPlayer) => {
-      result[currentPlayer.id] = getDefaultHeuristics(
+      result[currentPlayer] = getDefaultHeuristics(
         players,
         currentPlayer,
         previousHeuristics
@@ -231,8 +231,7 @@ const getHeuristics = (
     subjectId: PlayerId
   ) => {
     const playerHeuristic =
-      heuristics[playerId] ||
-      getDefaultHeuristics(players, { id: playerId, name: "" });
+      heuristics[playerId] || getDefaultHeuristics(players, playerId);
     if (heuristic === "roundsSinceSitOut") {
       if (playerHeuristic.roundsSinceSitOut > value) {
         playerHeuristic.roundsSinceSitOut = value;
@@ -318,7 +317,7 @@ const getHeuristics = (
   });
   // Populate the current round.
   players.forEach((player) => {
-    seePlayer(player.id, rounds.length);
+    seePlayer(player, rounds.length);
   });
   // Update the heuristics for late comers.
   lateComers.forEach((player) => {
@@ -328,12 +327,12 @@ const getHeuristics = (
   // Calculate mins and maxes.
   players.forEach((player) => {
     minMaxHeuristicTypes.forEach((heuristic) => {
-      const stats = heuristics[player.id][heuristic];
+      const stats = heuristics[player][heuristic];
       const { min, max } = players.reduce(
         (result: { min: number; max: number }, target) => {
-          if (target.id === player.id) return result;
-          result.min = Math.min(result.min, stats[target.id] || 0);
-          result.max = Math.max(result.max, stats[target.id] || 0);
+          if (target === player) return result;
+          result.min = Math.min(result.min, stats[target] || 0);
+          result.max = Math.max(result.max, stats[target] || 0);
           return result;
         },
         { min: INFINITY, max: 0 }
@@ -350,13 +349,13 @@ const getHeuristics = (
  * Get a ranked list of players that each player would like to partner with.
  */
 const getPartnerPreferences = (
-  players: Player[],
+  players: PlayerId[],
   heuristics: PlayerHeuristicsDictionary
 ) => {
-  return players.reduce((result: Record<PlayerId, Player[]>, player) => {
+  return players.reduce((result: Record<PlayerId, PlayerId[]>, player) => {
     // Shuffle to help avoid earlier everyone ranking the same player highly.
-    result[player.id] = shuffle(players)
-      .filter((x) => x.id !== player.id)
+    result[player] = shuffle(players)
+      .filter((x) => x !== player)
       .sort(sortPartnerCompatibility(player, heuristics));
     return result;
   }, {});
@@ -417,13 +416,13 @@ const pickFromListBiasBeginning = <T,>(
  */
 const getSitOuts = (
   heuristics: PlayerHeuristicsDictionary,
-  allPlayers: Player[],
+  allPlayers: PlayerId[],
   courts: number,
-  volunteers: Player[] = []
+  volunteers: PlayerId[] = []
 ) => {
   // Remove volunteer sitouts from possible players.
   const players = allPlayers.filter((player) =>
-    volunteers.every((volunteer) => volunteer.id !== player.id)
+    volunteers.every((volunteer) => volunteer !== player)
   );
   const capacity = courts * 4;
   const sitouts =
@@ -433,22 +432,21 @@ const getSitOuts = (
 
   // Shuffle because at the beginning everyone's rounds since sit out is the same.
   const inOrderOfSitout = shuffle(players).sort(
-    (a, b) =>
-      heuristics[b.id].roundsSinceSitOut - heuristics[a.id].roundsSinceSitOut
+    (a, b) => heuristics[b].roundsSinceSitOut - heuristics[a].roundsSinceSitOut
   );
 
   // Get everyone who has sat out the least number of times.
   const leastSitOuts = players.reduce((least, player) => {
-    return Math.min(heuristics[player.id].sitOutCount, least);
+    return Math.min(heuristics[player].sitOutCount, least);
   }, Infinity);
 
   // Two groups: those who are yet to sit out this round, and those who have.
   const { eligibleToSitOut, alreadySatOut } = inOrderOfSitout.reduce(
     (
-      result: { eligibleToSitOut: Player[]; alreadySatOut: Player[] },
+      result: { eligibleToSitOut: PlayerId[]; alreadySatOut: PlayerId[] },
       player
     ) => {
-      if (heuristics[player.id].sitOutCount === leastSitOuts) {
+      if (heuristics[player].sitOutCount === leastSitOuts) {
         result.eligibleToSitOut.push(player);
       } else {
         result.alreadySatOut.push(player);
@@ -485,13 +483,12 @@ const getSitOuts = (
  */
 async function getNextRound(
   rounds: Round[],
-  players: Player[],
+  players: PlayerId[],
   courts: number,
-  volunteerSitouts?: Player[],
+  volunteerSitouts?: PlayerId[],
   heuristics: PlayerHeuristicsDictionary = getHeuristics(rounds, players)
 ): Promise<[Round, { bestTeamScore: number; bestMatchesScore: number }]> {
   // TODO: remove dupes
-  // TODO: add set timeouts to allow other events to run.
   let bestTeamScore = Infinity;
   let bestTeams: { teams: Team[]; sitOuts: PlayerId[] } = {
     teams: [],
@@ -507,7 +504,7 @@ async function getNextRound(
       volunteerSitouts
     );
 
-    const sitOuts = sitoutPlayers.map((x) => x.id).sort(); // Sort by ID for stable order.
+    const sitOuts = sitoutPlayers.sort(); // Sort by ID for stable order.
 
     /* Make partnerships. */
     // Get ranked preferences for each player.
@@ -515,14 +512,14 @@ async function getNextRound(
     // Convert to indexes.
     const playerIdToIndex = roundPlayers.reduce(
       (indexes: Record<string, string>, player, index) => {
-        indexes[player.id] = index.toString();
+        indexes[player] = index.toString();
         return indexes;
       },
       {}
     );
     const partnerPreferenceMatrix = roundPlayers.map((player) => {
-      return partnerPreferences[player.id].map(
-        (preference) => playerIdToIndex[preference.id]
+      return partnerPreferences[player].map(
+        (preference) => playerIdToIndex[preference]
       );
     });
     let teamsByIndex = null;
@@ -535,8 +532,8 @@ async function getNextRound(
 
     // Convert back to player IDs.
     const teams: Team[] = teamsByIndex.map(([playerIndex, matchIndex]) => {
-      const player = roundPlayers[parseInt(playerIndex)].id;
-      const match = roundPlayers[parseInt(matchIndex)].id;
+      const player = roundPlayers[parseInt(playerIndex)];
+      const match = roundPlayers[parseInt(matchIndex)];
       return [player, match];
     });
 
@@ -610,11 +607,11 @@ async function getNextRound(
       heuristics
     );
     const averageScore = players.reduce((score, player) => {
-      const { roundsSincePlayedAgainst } = newHeuristics[player.id];
+      const { roundsSincePlayedAgainst } = newHeuristics[player];
       const playerScore = Math.sqrt(
         players.reduce((sum, opponent) => {
-          if (opponent.id === player.id) return sum;
-          return sum + Math.pow(roundsSincePlayedAgainst[opponent.id], 2);
+          if (opponent === player) return sum;
+          return sum + Math.pow(roundsSincePlayedAgainst[opponent], 2);
         }, 0)
       );
       return score + playerScore / players.length;
@@ -638,9 +635,9 @@ async function getNextRound(
 
 async function getNextBestRound(
   rounds: Round[],
-  players: Player[],
+  players: PlayerId[],
   courts: number,
-  volunteerSitouts?: Player[]
+  volunteerSitouts?: PlayerId[]
 ): Promise<Round> {
   // Go forward 3 rounds a few times and choose the best direction.
   // Try to avoid local tight spots.

@@ -41,8 +41,8 @@ export function SitoutsModal({
           onChange={setVolunteers}
         >
           {state.players.map((player) => (
-            <Checkbox value={player.id} key={player.id}>
-              {player.name}
+            <Checkbox value={player} key={player}>
+              {state.playersById[player].name}
             </Checkbox>
           ))}
         </Checkbox.Group>

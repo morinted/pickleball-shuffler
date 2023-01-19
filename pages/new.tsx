@@ -34,7 +34,7 @@ function NewGame() {
   useEffect(() => {
     if (playersRef.current) {
       playersRef.current.value = state.players
-        .map((player) => player.name)
+        .map((player) => state.playersById[player].name)
         .join("\n");
     }
     setCourts(state.courts.toString());
