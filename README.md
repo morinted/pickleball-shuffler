@@ -1,6 +1,8 @@
 # Jumbled doubles
 
-Mix up your pickleball matches
+Mix up your doubles matches
+
+Made for pickleball but compatible with anything that has teams of two facing off against each other.
 
 1. Play with everyone.
 1. Play against everyone.

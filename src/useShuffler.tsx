@@ -9,12 +9,23 @@ import { v4 as uuidv4 } from "uuid";
 
 type NewRoundOptions = {
   volunteerSitouts: PlayerId[];
-  replace?: boolean;
+  regenerate?: boolean;
+  players?: PlayerId[];
+  playersById?: Record<PlayerId, Player>;
 };
 
 type NewGameOptions = {
   names: string[];
   courts: number;
+};
+
+type EditCourts = {
+  courts: number;
+  regenerate: boolean;
+};
+type EditPlayers = {
+  newPlayers: Player[];
+  regenerate: boolean;
 };
 
 type Action =
@@ -25,7 +36,7 @@ type Action =
   | {
       type: "new-game-start";
       payload: {
-        players: Player[];
+        players: PlayerId[];
         playersById: Record<PlayerId, Player>;
         courts: number;
       };
@@ -40,10 +51,14 @@ type Action =
     }
   | {
       type: "new-round";
-      payload: Round;
+      payload: {
+        round: Round;
+        courts?: number;
+        volunteerSitouts: PlayerId[];
+      };
     }
   | {
-      type: "new-round-start";
+      type: "start-generation";
       payload: NewRoundOptions;
     }
   | {
@@ -52,9 +67,10 @@ type Action =
     };
 type Dispatch = (action: Action) => void;
 type State = {
-  players: Player[];
+  players: PlayerId[];
   rounds: Round[];
   courts: number;
+  volunteerSitoutsByRound: PlayerId[][];
   playersById: Record<PlayerId, Player>;
   generating: boolean;
   cacheLoaded: boolean;
@@ -63,6 +79,7 @@ type ShufflerProviderProps = { children: React.ReactNode };
 
 const defaultState: State = {
   players: [],
+  volunteerSitoutsByRound: [],
   playersById: {},
   rounds: [],
   courts: 2,
@@ -97,14 +114,20 @@ function loadFromCache(previousState: State): State {
     return existingState;
   }
   try {
-    const { players, rounds, courts } = JSON.parse(storageState);
-    if (!Array.isArray(players) || !Array.isArray(rounds) || isNaN(courts))
+    const { players, rounds, courts, volunteerSitoutsByRound, playersById } =
+      JSON.parse(storageState);
+    if (
+      !Array.isArray(players) ||
+      !Array.isArray(rounds) ||
+      isNaN(courts) ||
+      !playersById
+    )
       return existingState;
 
-    const playersById = getPlayersById({}, players);
     return {
       players,
       playersById,
+      volunteerSitoutsByRound,
       rounds,
       courts,
       cacheLoaded: true,
@@ -118,16 +141,23 @@ function loadFromCache(previousState: State): State {
 function cacheState(state: State): State {
   if (typeof window === "undefined") return state;
   window.setTimeout(() => {
-    const { players, courts, rounds } = state;
+    const { players, courts, rounds, volunteerSitoutsByRound, playersById } =
+      state;
     window.localStorage.setItem(
       "state",
-      JSON.stringify({ players, courts, rounds })
+      JSON.stringify({
+        players,
+        courts,
+        rounds,
+        volunteerSitoutsByRound,
+        playersById,
+      })
     );
   }, 0);
   return state;
 }
 
-function shufflerReducer(state: State, action: Action) {
+function shufflerReducer(state: State, action: Action): State {
   switch (action.type) {
     case "new-game-start": {
       const { payload } = action;
@@ -139,6 +169,7 @@ function shufflerReducer(state: State, action: Action) {
         playersById,
         courts,
         rounds: [],
+        volunteerSitoutsByRound: [],
         generating: true,
       });
     }
@@ -148,24 +179,35 @@ function shufflerReducer(state: State, action: Action) {
       return cacheState({
         ...state,
         rounds: [payload],
+        volunteerSitoutsByRound: [[]],
         generating: false,
       });
     }
     case "load-from-cache": {
       return loadFromCache(state);
     }
-    case "new-round-start":
-      const { replace } = action.payload;
+    case "start-generation":
+      const { regenerate } = action.payload;
       return {
         ...state,
         generating: true,
-        rounds: replace ? state.rounds.slice(0, -1) : state.rounds,
+        rounds: regenerate ? state.rounds.slice(0, -1) : state.rounds,
+        volunteerSitoutsByRound: regenerate
+          ? state.volunteerSitoutsByRound.slice(0, -1)
+          : state.volunteerSitoutsByRound,
+        players: action.payload.players || state.players,
+        playersById: action.payload.playersById || state.playersById,
       };
     case "new-round": {
       return cacheState({
         ...state,
         generating: false,
-        rounds: [...state.rounds, action.payload],
+        rounds: [...state.rounds, action.payload.round],
+        courts: action.payload.courts || state.courts,
+        volunteerSitoutsByRound: [
+          ...state.volunteerSitoutsByRound,
+          action.payload.volunteerSitouts,
+        ],
       });
     }
   }
@@ -177,20 +219,20 @@ async function newRound(
   state: State,
   payload: NewRoundOptions
 ) {
-  dispatch({ type: "new-round-start", payload });
-  const rounds = payload.replace ? state.rounds.slice(0, -1) : state.rounds;
-  const volunteerSitouts: Player[] = payload.volunteerSitouts.map((id) => ({
-    id,
-    name: state.playersById[id].name,
-  }));
+  dispatch({ type: "start-generation", payload });
+  const rounds = payload.regenerate ? state.rounds.slice(0, -1) : state.rounds;
+
   try {
     const nextRound = await getNextBestRound(
       rounds,
       state.players,
       state.courts,
-      volunteerSitouts
+      payload.volunteerSitouts
     );
-    dispatch({ type: "new-round", payload: nextRound });
+    dispatch({
+      type: "new-round",
+      payload: { round: nextRound, volunteerSitouts: payload.volunteerSitouts },
+    });
   } catch (error) {
     dispatch({ type: "new-round-fail", payload: { error: error as Error } });
   }
@@ -205,16 +247,78 @@ async function newGame(
   const players = createPlayers(names).sort((a, b) =>
     a.name.localeCompare(b.name)
   );
+  const playerIds = players.map(({ id }) => id);
   const playersById = getPlayersById(state.playersById, players);
   dispatch({
     type: "new-game-start",
-    payload: { players, playersById, courts },
+    payload: { players: players.map(({ id }) => id), playersById, courts },
   });
   try {
-    const nextRound = await getNextBestRound([], players, courts);
+    const nextRound = await getNextBestRound([], playerIds, courts);
     dispatch({ type: "new-game", payload: nextRound });
   } catch (error) {
     dispatch({ type: "new-game-fail", payload: { error: error as Error } });
+  }
+}
+
+async function editCourts(
+  dispatch: Dispatch,
+  state: State,
+  payload: EditCourts
+) {
+  const { courts, regenerate } = payload;
+  const volunteerSitouts = regenerate
+    ? state.volunteerSitoutsByRound.slice(-1)[0]
+    : [];
+  const rounds = regenerate ? state.rounds.slice(0, -1) : state.rounds;
+  dispatch({
+    type: "start-generation",
+    payload: { volunteerSitouts, regenerate },
+  });
+  try {
+    const nextRound = await getNextBestRound(rounds, state.players, courts);
+    dispatch({
+      type: "new-round",
+      payload: {
+        round: nextRound,
+        volunteerSitouts,
+        courts,
+      },
+    });
+  } catch (error) {
+    dispatch({ type: "new-round-fail", payload: { error: error as Error } });
+  }
+}
+
+async function editPlayers(
+  dispatch: Dispatch,
+  state: State,
+  payload: EditPlayers
+) {
+  const { newPlayers, regenerate } = payload;
+  const volunteerSitouts = regenerate
+    ? state.volunteerSitoutsByRound.slice(-1)[0]
+    : [];
+  const rounds = regenerate ? state.rounds.slice(0, -1) : state.rounds;
+
+  const playerIds = newPlayers.map(({ id }) => id);
+  const playersById = getPlayersById(state.playersById, newPlayers);
+
+  dispatch({
+    type: "start-generation",
+    payload: { volunteerSitouts, regenerate, playersById, players: playerIds },
+  });
+  try {
+    const nextRound = await getNextBestRound(rounds, playerIds, state.courts);
+    dispatch({
+      type: "new-round",
+      payload: {
+        round: nextRound,
+        volunteerSitouts,
+      },
+    });
+  } catch (error) {
+    dispatch({ type: "new-round-fail", payload: { error: error as Error } });
   }
 }
 
@@ -265,4 +369,6 @@ export {
   useLoadState,
   newRound,
   newGame,
+  editCourts,
+  editPlayers,
 };

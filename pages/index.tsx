@@ -6,8 +6,11 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Jumbled doubles: pickleball shuffler</title>
-        <meta name="description" content="Fair random doubles play" />
+        <title>Jumbled Doubles</title>
+        <meta
+          name="description"
+          content="Fair random doubles play for any activity that's played in teams of two."
+        />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
@@ -54,7 +57,8 @@ export default function Home() {
             <Spacer y={2} />
             <Text h3>Compatible sports</Text>
             <Text>
-              This site is for any sport where you play in teams of two:
+              This site is for any sport or activity where you play in teams of
+              two:
             </Text>
             <ul>
               <li>
@@ -74,6 +78,9 @@ export default function Home() {
               </li>
               <li>
                 <Text>🏐 Roundnet (spike ball)</Text>
+              </li>
+              <li>
+                <Text>🃏 Card games (Bridge, Euchre, etc.)</Text>
               </li>
             </ul>
 

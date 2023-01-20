@@ -64,7 +64,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </Navbar.Brand>
 
         <Navbar.Content>
-          {router.asPath !== "/new" && (
+          {router.asPath === "/" && (
             <Navbar.Item id="new-game-item">
               <Link href="/new" id="new-game-button">
                 <Button auto flat>
