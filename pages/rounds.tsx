@@ -9,17 +9,18 @@ import {
   Grid,
 } from "@nextui-org/react";
 import Head from "next/head";
-import React, { Fragment, useEffect, useRef, useState } from "react";
-import { Edit, Home, People } from "react-iconly";
+import React, { useEffect, useState } from "react";
+import { Edit, People } from "react-iconly";
 import { BadgeGroup } from "../src/BadgeGroup";
+import { Court } from "../src/Court";
 import { CourtsModal } from "../src/CourtsModal";
-import { PlayerId } from "../src/matching/heuristics";
 import { PlayerBadge } from "../src/PlayerBadge";
 import { PlayersModal } from "../src/PlayersModal";
 import { SitoutsModal } from "../src/SitoutsModal";
 import TeamBadges from "../src/TeamBadges";
 import {
   editCourts,
+  editPlayers,
   newRound,
   useShufflerDispatch,
   useShufflerState,
@@ -72,9 +73,9 @@ export default function Rounds() {
         <PlayersModal
           open={playersModal}
           onClose={() => setPlayersModal(false)}
-          onSubmit={async (newPlayers) => {
+          onSubmit={async (newPlayers, regenerate) => {
             setRoundIndex(0);
-            // TODO
+            await editPlayers(dispatch, state, { newPlayers, regenerate });
             setPlayersModal(false);
           }}
         />
@@ -119,7 +120,7 @@ export default function Rounds() {
               <Button
                 aria-label={`${state.players.length} players`}
                 auto
-                icon={<Home />}
+                icon={<Court />}
                 css={{ marginTop: "-0.75rem" }}
                 onPress={() => setCourtsModal(true)}
               >

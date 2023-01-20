@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 type NewRoundOptions = {
   volunteerSitouts: PlayerId[];
   regenerate?: boolean;
+  players?: PlayerId[];
   playersById?: Record<PlayerId, Player>;
 };
 
@@ -115,7 +116,12 @@ function loadFromCache(previousState: State): State {
   try {
     const { players, rounds, courts, volunteerSitoutsByRound, playersById } =
       JSON.parse(storageState);
-    if (!Array.isArray(players) || !Array.isArray(rounds) || isNaN(courts))
+    if (
+      !Array.isArray(players) ||
+      !Array.isArray(rounds) ||
+      isNaN(courts) ||
+      !playersById
+    )
       return existingState;
 
     return {
@@ -181,7 +187,7 @@ function shufflerReducer(state: State, action: Action): State {
       return loadFromCache(state);
     }
     case "start-generation":
-      const { regenerate, volunteerSitouts } = action.payload;
+      const { regenerate } = action.payload;
       return {
         ...state,
         generating: true,
@@ -189,6 +195,7 @@ function shufflerReducer(state: State, action: Action): State {
         volunteerSitoutsByRound: regenerate
           ? state.volunteerSitoutsByRound.slice(0, -1)
           : state.volunteerSitoutsByRound,
+        players: action.payload.players || state.players,
         playersById: action.payload.playersById || state.playersById,
       };
     case "new-round": {
@@ -299,7 +306,7 @@ async function editPlayers(
 
   dispatch({
     type: "start-generation",
-    payload: { volunteerSitouts, regenerate, playersById },
+    payload: { volunteerSitouts, regenerate, playersById, players: playerIds },
   });
   try {
     const nextRound = await getNextBestRound(rounds, playerIds, state.courts);

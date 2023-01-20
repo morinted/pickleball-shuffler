@@ -9,6 +9,7 @@ import {
 } from "@nextui-org/react";
 import { useEffect, useState } from "react";
 import { Home } from "react-iconly";
+import { Court } from "./Court";
 import { useShufflerState } from "./useShuffler";
 
 export function CourtsModal({
@@ -46,7 +47,7 @@ export function CourtsModal({
       <Modal.Body>
         <label>
           <Row align="center">
-            <Home />
+            <Court />
             <Spacer x={0.25} inline />
             <Text id="courts-label" size="$lg">
               How many courts are available now?

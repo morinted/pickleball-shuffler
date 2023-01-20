@@ -7,13 +7,12 @@ import {
   Spacer,
   Text,
   Textarea,
-  useInput,
 } from "@nextui-org/react";
-import dynamic from "next/dynamic";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
-import { Home, People } from "react-iconly";
+import { People } from "react-iconly";
+import { Court } from "../src/Court";
 import {
   newGame,
   useShufflerDispatch,
@@ -96,7 +95,7 @@ function NewGame() {
             <Spacer y={1} />
             <label>
               <Row align="center">
-                <Home />
+                <Court />
                 <Spacer x={0.25} inline />
                 <Text id="courts-label">How many courts are available?</Text>
               </Row>
