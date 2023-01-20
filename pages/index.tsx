@@ -6,8 +6,11 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Jumbled doubles: pickleball shuffler</title>
-        <meta name="description" content="Fair random doubles play" />
+        <title>Jumbled Doubles</title>
+        <meta
+          name="description"
+          content="Fair random doubles play for any activity that's played in teams of two."
+        />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
