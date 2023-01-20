@@ -69,8 +69,9 @@ export function PlayersModal({
       </Modal.Header>
       <Modal.Body>
         <Text size="$lg">
-          Add or remove players. Applies to this round (regenerate) or next
-          round (create a new one!)
+          Add or remove players. You can either{" "}
+          <Text b>redo the current round</Text> (because you haven't played yet)
+          or <Text b>start a new round</Text> with the updated roster.
         </Text>
         <form
           name="new-player"

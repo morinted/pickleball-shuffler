@@ -44,6 +44,7 @@ export default function Rounds() {
     }
   }, [state.rounds]);
   const round = state.rounds[roundIndex];
+  const volunteers = state.volunteerSitoutsByRound[roundIndex];
   const { sitOuts = [], matches = [] } = round || {};
   const playerName = (id: string) => {
     return state.playersById[id].name;
@@ -157,14 +158,12 @@ export default function Rounds() {
                   </Row>
                   <Spacer y={0.5} />
                   <BadgeGroup>
-                    {sitOuts
-                      .map(playerName)
-                      .sort()
-                      .map((name) => (
-                        <PlayerBadge key={name} color="default">
-                          {name}
-                        </PlayerBadge>
-                      ))}
+                    {sitOuts.map((playerId) => (
+                      <PlayerBadge key={playerId} color="default">
+                        {playerName(playerId)}
+                        {volunteers.includes(playerId) ? " (volunteer)" : ""}
+                      </PlayerBadge>
+                    ))}
                   </BadgeGroup>
                 </Card.Body>
               </Card>
@@ -224,7 +223,7 @@ export default function Rounds() {
             }}
             color="gradient"
           >
-            Generate round {state.rounds.length + 1}
+            Start round {state.rounds.length + 1}!
           </Button>
         </Row>
         <Spacer y={2} />
