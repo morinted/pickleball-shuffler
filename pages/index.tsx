@@ -54,7 +54,8 @@ export default function Home() {
             <Spacer y={2} />
             <Text h3>Compatible sports</Text>
             <Text>
-              This site is for any sport where you play in teams of two:
+              This site is for any sport or activity where you play in teams of
+              two:
             </Text>
             <ul>
               <li>
@@ -74,6 +75,9 @@ export default function Home() {
               </li>
               <li>
                 <Text>🏐 Roundnet (spike ball)</Text>
+              </li>
+              <li>
+                <Text>🃏 Card games (Bridge, Euchre, etc.)</Text>
               </li>
             </ul>
 

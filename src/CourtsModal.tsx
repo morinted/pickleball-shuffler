@@ -74,14 +74,14 @@ export function CourtsModal({
           onPress={() => onSubmit(parseInt(courts), true)}
           color="error"
         >
-          Redo this round
+          Redo round
         </Button>
         <Button
           auto
           onPress={() => onSubmit(parseInt(courts), false)}
           color="gradient"
         >
-          Next round
+          New round
         </Button>
       </Modal.Footer>
     </Modal>

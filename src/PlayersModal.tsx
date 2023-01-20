@@ -152,10 +152,10 @@ export function PlayersModal({
           Close
         </Button>
         <Button auto onPress={handleSubmit(true)} color="error">
-          Redo this round
+          Redo round
         </Button>
         <Button auto onPress={handleSubmit()} color="gradient">
-          Next round
+          New round
         </Button>
       </Modal.Footer>
     </Modal>
