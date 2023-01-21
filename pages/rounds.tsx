@@ -139,36 +139,41 @@ export default function Rounds() {
           )}
         </Row>
         <Grid.Container gap={2} justify="center">
-          {!!sitOuts.length && (
-            <Grid xs={12} sm={6} md={4} xl={3}>
-              <Card variant="flat">
-                <Card.Body>
-                  <Row justify="space-between" align="center">
-                    <Text h4>Sitting out</Text>
-                    <Button
-                      auto
-                      css={{
-                        marginTop: "-1rem",
-                      }}
-                      flat
-                      color="primary"
-                      onPress={() => setSitoutModal(true)}
-                      icon={<Edit label="Edit sit outs" />}
-                    />
-                  </Row>
-                  <Spacer y={0.5} />
-                  <BadgeGroup>
-                    {sitOuts.map((playerId) => (
-                      <PlayerBadge key={playerId} color="default">
-                        {playerName(playerId)}
-                        {volunteers.includes(playerId) ? " (volunteer)" : ""}
-                      </PlayerBadge>
-                    ))}
-                  </BadgeGroup>
-                </Card.Body>
-              </Card>
-            </Grid>
-          )}
+          <Grid xs={12} sm={4} md={3} xl={2}>
+            <Card variant="flat">
+              <Card.Body>
+                <Row justify="space-between" align="center">
+                  <Text h4>Sitting out</Text>
+                  <Button
+                    auto
+                    css={{
+                      marginTop: "-1rem",
+                    }}
+                    flat
+                    color="primary"
+                    onPress={() => setSitoutModal(true)}
+                    icon={<Edit label="Edit sit outs" />}
+                  />
+                </Row>
+                {sitOuts.length ? (
+                  <>
+                    <Spacer y={0.5} />
+                    <BadgeGroup>
+                      {sitOuts.map((playerId) => (
+                        <PlayerBadge key={playerId} color="default">
+                          {playerName(playerId)}
+                          {volunteers.includes(playerId) ? " (volunteer)" : ""}
+                        </PlayerBadge>
+                      ))}
+                    </BadgeGroup>
+                  </>
+                ) : (
+                  <Text i>No one has to sit out.</Text>
+                )}
+              </Card.Body>
+            </Card>
+          </Grid>
+
           {matches.map(([teamA, teamB], index) => {
             return (
               <Grid

@@ -51,12 +51,7 @@ export function SitoutsModal({
         <Button auto flat onPress={onClose}>
           Close
         </Button>
-        <Button
-          auto
-          onPress={() => onSubmit(volunteers)}
-          color="gradient"
-          disabled={!volunteers.length}
-        >
+        <Button auto onPress={() => onSubmit(volunteers)} color="gradient">
           Re-jumble!
         </Button>
       </Modal.Footer>
