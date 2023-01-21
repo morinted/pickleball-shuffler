@@ -276,7 +276,12 @@ async function editCourts(
     payload: { volunteerSitouts, regenerate },
   });
   try {
-    const nextRound = await getNextBestRound(rounds, state.players, courts);
+    const nextRound = await getNextBestRound(
+      rounds,
+      state.players,
+      courts,
+      volunteerSitouts
+    );
     dispatch({
       type: "new-round",
       payload: {
@@ -309,7 +314,12 @@ async function editPlayers(
     payload: { volunteerSitouts, regenerate, playersById, players: playerIds },
   });
   try {
-    const nextRound = await getNextBestRound(rounds, playerIds, state.courts);
+    const nextRound = await getNextBestRound(
+      rounds,
+      playerIds,
+      state.courts,
+      volunteerSitouts
+    );
     dispatch({
       type: "new-round",
       payload: {
