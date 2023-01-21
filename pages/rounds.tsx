@@ -24,11 +24,13 @@ import {
   newRound,
   useShufflerDispatch,
   useShufflerState,
+  useShufflerWorker,
 } from "../src/useShuffler";
 
 export default function Rounds() {
   const state = useShufflerState();
   const dispatch = useShufflerDispatch();
+  const worker = useShufflerWorker();
 
   const [sitoutModal, setSitoutModal] = useState(false);
   const [playersModal, setPlayersModal] = useState(false);
@@ -43,8 +45,12 @@ export default function Rounds() {
       window.scrollTo(0, 0);
     }
   }, [state.rounds]);
-  const round = state.rounds[roundIndex];
-  const volunteers = state.volunteerSitoutsByRound[roundIndex];
+  const displayIndex = Math.max(
+    0,
+    Math.min(roundIndex, state.rounds.length - 1)
+  );
+  const round = state.rounds[displayIndex];
+  const volunteers = state.volunteerSitoutsByRound[displayIndex];
   const { sitOuts = [], matches = [] } = round || {};
   const playerName = (id: string) => {
     return state.playersById[id].name;
@@ -63,8 +69,7 @@ export default function Rounds() {
           open={sitoutModal}
           onClose={() => setSitoutModal(false)}
           onSubmit={async (volunteerSitouts) => {
-            setRoundIndex(0);
-            await newRound(dispatch, state, {
+            await newRound(dispatch, state, worker, {
               regenerate: true,
               volunteerSitouts,
             });
@@ -75,8 +80,11 @@ export default function Rounds() {
           open={playersModal}
           onClose={() => setPlayersModal(false)}
           onSubmit={async (newPlayers, regenerate) => {
-            setRoundIndex(0);
-            await editPlayers(dispatch, state, { newPlayers, regenerate });
+            await editPlayers(dispatch, state, worker, {
+              newPlayers,
+              regenerate,
+            });
+            if (!regenerate && roundIndex) setRoundIndex((index) => index + 1);
             setPlayersModal(false);
           }}
         />
@@ -84,11 +92,11 @@ export default function Rounds() {
           open={courtsModal}
           onClose={() => setCourtsModal(false)}
           onSubmit={async (courts, regenerate) => {
-            setRoundIndex(0);
-            await editCourts(dispatch, state, {
+            await editCourts(dispatch, state, worker, {
               regenerate,
               courts,
             });
+            if (!regenerate && roundIndex) setRoundIndex((index) => index + 1);
             setCourtsModal(false);
           }}
         />
@@ -204,7 +212,7 @@ export default function Rounds() {
         <Spacer y={1} />
         <Row justify="space-around">
           <Pagination
-            total={state.rounds.length || 1}
+            total={state.rounds.length + (state.generating ? 1 : 0) || 1}
             page={roundIndex + 1}
             onChange={(page: number) => {
               setRoundIndex(page - 1);
@@ -215,14 +223,10 @@ export default function Rounds() {
         <Row justify="space-around">
           <Button
             size="lg"
-            disabled={state.generating}
             onPress={async () => {
-              // Waiting for a little bit of time allows the button to animate
-              // and prevents issues with pagination presses.
-              await new Promise((resolve) =>
-                setTimeout(() => resolve(true), 250)
-              );
-              await newRound(dispatch, state, { volunteerSitouts: [] });
+              await newRound(dispatch, state, worker, {
+                volunteerSitouts: [],
+              });
               setRoundIndex(state.rounds.length);
               window.scrollTo(0, 0);
             }}

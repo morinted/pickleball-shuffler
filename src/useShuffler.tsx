@@ -1,10 +1,5 @@
 import * as React from "react";
-import {
-  getNextBestRound,
-  Player,
-  PlayerId,
-  Round,
-} from "./matching/heuristics";
+import { Player, PlayerId, Round } from "./matching/heuristics";
 import { v4 as uuidv4 } from "uuid";
 
 type NewRoundOptions = {
@@ -18,6 +13,8 @@ type NewGameOptions = {
   names: string[];
   courts: number;
 };
+
+type WorkerRef = React.MutableRefObject<Worker | undefined>;
 
 type EditCourts = {
   courts: number;
@@ -89,6 +86,9 @@ const defaultState: State = {
 
 const ShufflerStateContext = React.createContext<State | undefined>(undefined);
 const ShufflerDispatchContext = React.createContext<Dispatch | undefined>(
+  undefined
+);
+const ShufflerWorkerContext = React.createContext<Worker | null | undefined>(
   undefined
 );
 
@@ -217,13 +217,17 @@ function shufflerReducer(state: State, action: Action): State {
 async function newRound(
   dispatch: Dispatch,
   state: State,
+  worker: Worker | null,
   payload: NewRoundOptions
 ) {
+  if (!worker) return;
+  if (state.generating) return;
   dispatch({ type: "start-generation", payload });
   const rounds = payload.regenerate ? state.rounds.slice(0, -1) : state.rounds;
 
   try {
-    const nextRound = await getNextBestRound(
+    const nextRound = await generateRound(
+      worker,
       rounds,
       state.players,
       state.courts,
@@ -241,8 +245,11 @@ async function newRound(
 async function newGame(
   dispatch: Dispatch,
   state: State,
+  worker: Worker | null,
   payload: NewGameOptions
 ) {
+  if (!worker) return;
+  if (state.generating) return;
   const { courts, names } = payload;
   const players = createPlayers(names).sort((a, b) =>
     a.name.localeCompare(b.name)
@@ -254,18 +261,45 @@ async function newGame(
     payload: { players: players.map(({ id }) => id), playersById, courts },
   });
   try {
-    const nextRound = await getNextBestRound([], playerIds, courts);
+    const nextRound = await generateRound(worker, [], playerIds, courts, []);
     dispatch({ type: "new-game", payload: nextRound });
   } catch (error) {
     dispatch({ type: "new-game-fail", payload: { error: error as Error } });
   }
 }
 
+async function generateRound(
+  worker: Worker,
+  rounds: Round[],
+  players: PlayerId[],
+  courts: number,
+  volunteerSitouts: PlayerId[]
+): Promise<Round> {
+  return new Promise((resolve, reject) => {
+    const messageCallback = (event: MessageEvent<Round>) => {
+      resolve(event.data);
+      worker.removeEventListener("message", messageCallback);
+    };
+    worker.addEventListener("message", messageCallback);
+
+    const errorCallback = (error: ErrorEvent) => {
+      reject(error);
+      worker.removeEventListener("error", errorCallback);
+    };
+    worker.addEventListener("error", errorCallback);
+
+    worker.postMessage([rounds, players, courts, volunteerSitouts]);
+  });
+}
+
 async function editCourts(
   dispatch: Dispatch,
   state: State,
+  worker: Worker | null,
   payload: EditCourts
 ) {
+  if (!worker) return;
+  if (state.generating) return;
   const { courts, regenerate } = payload;
   const volunteerSitouts = regenerate
     ? state.volunteerSitoutsByRound.slice(-1)[0]
@@ -275,8 +309,10 @@ async function editCourts(
     type: "start-generation",
     payload: { volunteerSitouts, regenerate },
   });
+
   try {
-    const nextRound = await getNextBestRound(
+    const round = await generateRound(
+      worker,
       rounds,
       state.players,
       courts,
@@ -285,7 +321,7 @@ async function editCourts(
     dispatch({
       type: "new-round",
       payload: {
-        round: nextRound,
+        round,
         volunteerSitouts,
         courts,
       },
@@ -298,8 +334,11 @@ async function editCourts(
 async function editPlayers(
   dispatch: Dispatch,
   state: State,
+  worker: Worker | null,
   payload: EditPlayers
 ) {
+  if (!worker) return;
+  if (state.generating) return;
   const { newPlayers, regenerate } = payload;
   const volunteerSitouts = regenerate
     ? state.volunteerSitoutsByRound.slice(-1)[0]
@@ -314,7 +353,8 @@ async function editPlayers(
     payload: { volunteerSitouts, regenerate, playersById, players: playerIds },
   });
   try {
-    const nextRound = await getNextBestRound(
+    const nextRound = await generateRound(
+      worker,
       rounds,
       playerIds,
       state.courts,
@@ -334,10 +374,22 @@ async function editPlayers(
 
 function ShufflerProvider({ children }: ShufflerProviderProps) {
   const [state, dispatch] = React.useReducer(shufflerReducer, defaultState);
+  const workerRef = React.useRef<Worker | null>();
+
+  React.useEffect(() => {
+    workerRef.current = new Worker(
+      new URL("./matching/worker.ts", import.meta.url)
+    );
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, []);
   return (
     <ShufflerStateContext.Provider value={state}>
       <ShufflerDispatchContext.Provider value={dispatch}>
-        {children}
+        <ShufflerWorkerContext.Provider value={workerRef.current ?? null}>
+          {children}
+        </ShufflerWorkerContext.Provider>
       </ShufflerDispatchContext.Provider>
     </ShufflerStateContext.Provider>
   );
@@ -352,13 +404,26 @@ function useShufflerState() {
   return state;
 }
 
-function useShufflerDispatch() {
+function useShufflerDispatch(): Dispatch {
   const dispatch = React.useContext(ShufflerDispatchContext);
 
   if (dispatch === undefined) {
     throw new Error("useShuffler must be used within a ShufflerProvider");
   }
+
   return dispatch;
+}
+
+function useShufflerWorker(): Worker | null {
+  const worker = React.useContext(ShufflerWorkerContext);
+
+  if (worker === undefined) {
+    throw new Error(
+      "useShufflerWorker must be used within a ShufflerWorkerProvider"
+    );
+  }
+
+  return worker;
 }
 
 function useLoadState() {
@@ -376,6 +441,7 @@ export {
   ShufflerProvider,
   useShufflerState,
   useShufflerDispatch,
+  useShufflerWorker,
   useLoadState,
   newRound,
   newGame,
