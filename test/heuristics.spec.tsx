@@ -93,9 +93,12 @@ describe("calculateHeuristics()", () => {
     // Late players should start with a number of sit outs equal to the current round.
     const everyoneSatOutOnceOrTwice = [...sampleRounds, sampleRounds[0]];
     const newPlayers = [...samplePlayers, "late"];
-    expect(
-      getHeuristics(everyoneSatOutOnceOrTwice, newPlayers).late.sitOutCount
-    ).toBe(2);
+    const lateHeuristics = getHeuristics(
+      everyoneSatOutOnceOrTwice,
+      newPlayers
+    ).late;
+    expect(lateHeuristics.sitOutCount).toBe(2);
+    expect(lateHeuristics.roundsSinceSitOut).toBe(INFINITY);
     const [nextRound] = await getNextRound(
       everyoneSatOutOnceOrTwice,
       newPlayers,
