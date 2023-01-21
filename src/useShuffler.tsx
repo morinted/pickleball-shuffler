@@ -253,7 +253,7 @@ async function newGame(
     a.name.localeCompare(b.name)
   );
   const playerIds = players.map(({ id }) => id);
-  const playersById = getPlayersById(state.playersById, players);
+  const playersById = getPlayersById({}, players);
   dispatch({
     type: "new-game-start",
     payload: { players: players.map(({ id }) => id), playersById, courts },

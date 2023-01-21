@@ -42,12 +42,17 @@ export function PlayersModal({
     };
   useEffect(() => {
     if (open) {
+      const allPlayers = Object.values(state.playersById);
+
       setPlayers(
-        state.players.map((id) => ({
-          ...state.playersById[id],
-          delete: false,
-          new: false,
-        }))
+        allPlayers
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map(({ name, id }) => ({
+            id,
+            name,
+            delete: !state.players.includes(id),
+            new: false,
+          }))
       );
     }
   }, [open]);
