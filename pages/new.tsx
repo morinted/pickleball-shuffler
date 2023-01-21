@@ -17,12 +17,14 @@ import {
   newGame,
   useShufflerDispatch,
   useShufflerState,
+  useShufflerWorker,
 } from "../src/useShuffler";
 
 function NewGame() {
   const router = useRouter();
   const state = useShufflerState();
   const dispatch = useShufflerDispatch();
+  const worker = useShufflerWorker();
 
   // Rerendering on text input was very slow due to NextUI textarea element.
   const playersRef = useRef<HTMLTextAreaElement>(null);
@@ -39,7 +41,7 @@ function NewGame() {
     setCourts(state.courts.toString());
   }, [state.players, state.courts]);
 
-  const handleNewGame = () => {
+  const handleNewGame = async () => {
     if (!playersRef.current) return;
     const names = Array.from(
       new Set(
@@ -52,7 +54,7 @@ function NewGame() {
     if (names.length < 4) return;
     const courtCount = parseInt(courts);
     if (courtCount < 1) return;
-    newGame(dispatch, state, {
+    await newGame(dispatch, state, worker, {
       names,
       courts: courtCount,
     });

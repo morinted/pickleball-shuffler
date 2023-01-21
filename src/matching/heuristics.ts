@@ -377,7 +377,7 @@ const getTeamPreferences = (
   }, {});
 };
 
-const pickFromListBiasBeginning = <T,>(
+const pickFromListBiasBeginning = <T>(
   list: T[],
   count: number,
   // Base chance of the first item, e.g. 7/7 * baseChance (60%) for the first item, 1/7 * baseChance (8.5%) for the last.
