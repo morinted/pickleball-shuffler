@@ -14,8 +14,6 @@ type NewGameOptions = {
   courts: number;
 };
 
-type WorkerRef = React.MutableRefObject<Worker | undefined>;
-
 type EditCourts = {
   courts: number;
   regenerate: boolean;
@@ -374,20 +372,20 @@ async function editPlayers(
 
 function ShufflerProvider({ children }: ShufflerProviderProps) {
   const [state, dispatch] = React.useReducer(shufflerReducer, defaultState);
-  const workerRef = React.useRef<Worker | null>();
+  const [worker, setWorker] = React.useState<Worker | null>(null);
 
   React.useEffect(() => {
-    workerRef.current = new Worker(
-      new URL("./matching/worker.ts", import.meta.url)
-    );
+    const worker = new Worker(new URL("./matching/worker.ts", import.meta.url));
+    setWorker(worker);
     return () => {
-      workerRef.current?.terminate();
+      worker.terminate();
+      setWorker(null);
     };
   }, []);
   return (
     <ShufflerStateContext.Provider value={state}>
       <ShufflerDispatchContext.Provider value={dispatch}>
-        <ShufflerWorkerContext.Provider value={workerRef.current ?? null}>
+        <ShufflerWorkerContext.Provider value={worker ?? null}>
           {children}
         </ShufflerWorkerContext.Provider>
       </ShufflerDispatchContext.Provider>
