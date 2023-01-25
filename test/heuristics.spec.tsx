@@ -126,7 +126,7 @@ describe("calculateHeuristics()", () => {
     }
     expect(playersSelectedForSitout).toEqual(new Set(samplePlayers));
   });
-  test("play with everyone in as many rounds as there are players", async () => {
+  test("no repeated partners before full cycle", async () => {
     const players = sampleNames.slice(0, 9);
     const rounds: Round[] = [];
     for (let i = 0; i < players.length; i++) {
@@ -139,7 +139,7 @@ describe("calculateHeuristics()", () => {
     }, 0);
     expect(numberOfMistakes).toBe(0);
   });
-  test("time to see everyone should equal or be less than the number of players", async () => {
+  test("low time to see all players", async () => {
     const players: PlayerId[] = sampleNames.slice(0, 12);
 
     const countPlayersWhoHaveSeenEveryone = (

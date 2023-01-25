@@ -148,9 +148,10 @@ const partnerScore = (
 
   const netSincePartnered = roundsSinceWith - minSinceWith;
   const netSinceAgainst = roundsSinceAgainst - minSinceAgainst;
+  const sawLastGameDenominator = netSinceAgainst === 0 ? 1 : 0;
   // How long since we've played, half-weighted since played against, divided by played with count.
   const playedWithScore =
-    (netSincePartnered + netSinceAgainst * 0.5) / (netPlayedWithCount + 1);
+    netSincePartnered / (netPlayedWithCount + 1 + sawLastGameDenominator);
 
   return playedWithScore;
 };
@@ -170,13 +171,14 @@ const opponentScore = (
     const { min: minSinceWith, [target]: roundsSinceWith } =
       heuristics[player].roundsSincePlayedWith;
 
-    const netRoundsSinceSeen = Math.min(
+    const sincePlayedWithMultiplier =
+      roundsSinceWith - minSinceWith === 0 ? 0.75 : 1;
+
+    const netRoundsSinceSeen =
       // Normalize with min to account for sit outs.
-      roundsSinceAgainst,
-      roundsSinceWith * 2
-    );
+      roundsSinceAgainst - minSinceAgainst;
     // Square result to strongly favor high numbers.
-    return Math.pow(netRoundsSinceSeen, 2);
+    return Math.pow(netRoundsSinceSeen, 2) * sincePlayedWithMultiplier;
   };
 
   return team.reduce((score, player) => {
