@@ -12,6 +12,9 @@
 /.pnp
 .pnp.js
 
+# pwa
+/public/sw.*
+
 # testing
 /coverage
 

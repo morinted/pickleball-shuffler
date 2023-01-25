@@ -3,6 +3,8 @@ import {
   getNextBestRound,
   getNextRound,
   INFINITY,
+  PlayerHeuristicsDictionary,
+  PlayerId,
   Round,
 } from "../src/matching/heuristics";
 
@@ -137,6 +139,31 @@ describe("calculateHeuristics()", () => {
     }, 0);
     expect(numberOfMistakes).toBe(0);
   });
+  test("time to see everyone should equal or be less than the number of players", async () => {
+    const players: PlayerId[] = sampleNames.slice(0, 12);
+
+    const countPlayersWhoHaveSeenEveryone = (
+      heuristics: PlayerHeuristicsDictionary
+    ) => {
+      return players.filter((player: PlayerId) =>
+        players.every(
+          (otherPlayer: PlayerId) =>
+            otherPlayer === player ||
+            heuristics[player].roundsSincePlayedAgainst[otherPlayer] !==
+              INFINITY ||
+            heuristics[player].roundsSincePlayedWith[otherPlayer] !== INFINITY
+        )
+      ).length;
+    };
+
+    const rounds: Round[] = [];
+    let heuristics = getHeuristics(rounds, players);
+    while (countPlayersWhoHaveSeenEveryone(heuristics) < players.length) {
+      rounds.push(await getNextBestRound(rounds, players, 3));
+      heuristics = getHeuristics(rounds, players);
+    }
+    expect(rounds.length).toBeLessThanOrEqual(players.length * 0.75);
+  });
   test("5 players, 5 games", async () => {
     const players = sampleNames.slice(0, 5);
     const rounds: Round[] = [];
@@ -151,7 +178,6 @@ describe("calculateHeuristics()", () => {
       );
       sitOuts.forEach((sit) => uniqueSits.add(sit));
     });
-    console.log(roundsToString(rounds));
     expect(uniqueSits.size).toEqual(5);
     expect(uniqueTeams.size).toEqual(10);
   });

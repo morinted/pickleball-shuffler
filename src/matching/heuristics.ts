@@ -139,13 +139,18 @@ const partnerScore = (
   const {} = heuristics[player].roundsSincePlayedAgainst;
   const { min: minSinceWith, [partner]: roundsSinceWith } =
     heuristics[player].roundsSincePlayedWith;
+  const { min: minSinceAgainst, [partner]: roundsSinceAgainst } =
+    heuristics[player].roundsSincePlayedAgainst;
   const { min: minPlayedCount, [partner]: playedWithCount } =
     heuristics[player].playedWithCount;
 
-  const playedWithOffset = playedWithCount - minPlayedCount;
+  const netPlayedWithCount = playedWithCount - minPlayedCount;
 
+  const netSincePartnered = roundsSinceWith - minSinceWith;
+  const netSinceAgainst = roundsSinceAgainst - minSinceAgainst;
+  // How long since we've played, half-weighted since played against, divided by played with count.
   const playedWithScore =
-    (roundsSinceWith - minSinceWith) / (playedWithOffset + 1);
+    (netSincePartnered + netSinceAgainst * 0.5) / (netPlayedWithCount + 1);
 
   return playedWithScore;
 };
@@ -164,12 +169,14 @@ const opponentScore = (
       heuristics[player].roundsSincePlayedAgainst;
     const { min: minSinceWith, [target]: roundsSinceWith } =
       heuristics[player].roundsSincePlayedWith;
-    // Normalize with min to account for sit outs.
-    // Square result to strongly favor high numbers.
-    return (
-      Math.pow(roundsSinceAgainst - minSinceAgainst, 2) +
-      Math.pow(roundsSinceWith - minSinceWith, 1.5)
+
+    const netRoundsSinceSeen = Math.min(
+      // Normalize with min to account for sit outs.
+      roundsSinceAgainst,
+      roundsSinceWith * 2
     );
+    // Square result to strongly favor high numbers.
+    return Math.pow(netRoundsSinceSeen, 2);
   };
 
   return team.reduce((score, player) => {
