@@ -151,7 +151,7 @@ const partnerScore = (
   const sawLastGameDenominator = netSinceAgainst === 0 ? 1 : 0;
   // How long since we've played, half-weighted since played against, divided by played with count.
   const playedWithScore =
-    netSincePartnered / (netPlayedWithCount + 1 + sawLastGameDenominator);
+    netSincePartnered / (netPlayedWithCount * 2 + 1 + sawLastGameDenominator);
 
   return playedWithScore;
 };
