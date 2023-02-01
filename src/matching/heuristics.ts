@@ -1,4 +1,5 @@
 import { stableRoommateProblem } from "./irvings";
+import { PairMaker, Preferences } from "./ranked-matches";
 import { shuffle } from "./roommates";
 
 export type PlayerId = string;
@@ -354,6 +355,21 @@ const getHeuristics = (
   return heuristics;
 };
 
+const getPartnerPreferencesNew = (
+  players: PlayerId[],
+  heuristics: PlayerHeuristicsDictionary
+) => {
+  return players.reduce((result: Preferences, player) => {
+    // Shuffle to help avoid earlier everyone ranking the same player highly.
+    result[player] = players.reduce((acc: Record<string, number>, partner) => {
+      if (player === partner) return acc;
+      acc[partner] = partnerScore(player, heuristics, partner);
+      return acc;
+    }, {});
+    return result;
+  }, {});
+};
+
 /**
  * Get a ranked list of players that each player would like to partner with.
  */
@@ -517,34 +533,42 @@ async function getNextRound(
 
     /* Make partnerships. */
     // Get ranked preferences for each player.
-    const partnerPreferences = getPartnerPreferences(roundPlayers, heuristics);
-    // Convert to indexes.
-    const playerIdToIndex = roundPlayers.reduce(
-      (indexes: Record<string, string>, player, index) => {
-        indexes[player] = index.toString();
-        return indexes;
-      },
-      {}
-    );
-    const partnerPreferenceMatrix = roundPlayers.map((player) => {
-      return partnerPreferences[player].map(
-        (preference) => playerIdToIndex[preference]
-      );
-    });
-    let teamsByIndex = null;
-    try {
-      // Apply Irving's algorithm.
-      teamsByIndex = stableRoommateProblem(partnerPreferenceMatrix);
-    } catch (e) {
-      continue;
-    }
 
-    // Convert back to player IDs.
-    const teams: Team[] = teamsByIndex.map(([playerIndex, matchIndex]) => {
-      const player = roundPlayers[parseInt(playerIndex)];
-      const match = roundPlayers[parseInt(matchIndex)];
-      return [player, match];
-    });
+    // const partnerPreferences = getPartnerPreferences(roundPlayers, heuristics);
+    // // Convert to indexes.
+    // const playerIdToIndex = roundPlayers.reduce(
+    //   (indexes: Record<string, string>, player, index) => {
+    //     indexes[player] = index.toString();
+    //     return indexes;
+    //   },
+    //   {}
+    // );
+    // const partnerPreferenceMatrix = roundPlayers.map((player) => {
+    //   return partnerPreferences[player].map(
+    //     (preference) => playerIdToIndex[preference]
+    //   );
+    // });
+    // let teamsByIndex = null;
+    // try {
+    //   // Apply Irving's algorithm.
+    //   teamsByIndex = stableRoommateProblem(partnerPreferenceMatrix);
+    // } catch (e) {
+    //   continue;
+    // }
+    const partnerPreferences: Preferences = getPartnerPreferencesNew(
+      roundPlayers,
+      heuristics
+    );
+    const partnerMaker = new PairMaker(partnerPreferences);
+    partnerMaker.solve();
+    const teams: Team[] = partnerMaker.solvedGroups;
+
+    // // Convert back to player IDs.
+    // const teams: Team[] = teamsByIndex.map(([playerIndex, matchIndex]) => {
+    //   const player = roundPlayers[parseInt(playerIndex)];
+    //   const match = roundPlayers[parseInt(matchIndex)];
+    //   return [player, match];
+    // });
 
     // Count the number of people who are partnering with someone who is at their max (and not because it's their min)
     const score = teams.reduce((result: number, [a, b]) => {
@@ -702,4 +726,13 @@ async function getNextBestRound(
   return selectedRound!;
 }
 
-export { getHeuristics, getNextRound, getNextBestRound };
+export {
+  getHeuristics,
+  getNextRound,
+  getNextBestRound,
+  opponentScore,
+  partnerScore,
+  sortTeamCompatibility,
+  sortPartnerCompatibility,
+  getTeamPreferences,
+};

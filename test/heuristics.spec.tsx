@@ -2,10 +2,14 @@ import {
   getHeuristics,
   getNextBestRound,
   getNextRound,
+  getTeamPreferences,
   INFINITY,
   PlayerHeuristicsDictionary,
   PlayerId,
   Round,
+  sortPartnerCompatibility,
+  sortTeamCompatibility,
+  Team,
 } from "../src/matching/heuristics";
 
 const roundsToString = (rounds: Round[]) =>
@@ -119,6 +123,7 @@ describe("calculateHeuristics()", () => {
     let attempts = 0;
     while (playersSelectedForSitout.size < 6 && attempts < 1000) {
       attempts += 1;
+
       const [nextRound] = await getNextRound(sampleRounds, samplePlayers, 1);
       nextRound.sitOuts.forEach((sitOut) =>
         playersSelectedForSitout.add(sitOut)
@@ -196,5 +201,121 @@ describe("calculateHeuristics()", () => {
     expect(round.matches).toHaveLength(2);
     expect(round.sitOuts).toHaveLength(5);
     expect(round.sitOuts).toEqual(expect.arrayContaining(volunteers));
+  });
+  test("team matching", async () => {
+    const players = Array.from(new Array(13), (_, index) => index.toString());
+
+    const team36: Team = ["3", "6"];
+    const team49: Team = ["4", "9"];
+    const team010: Team = ["0", "10"];
+    const team812: Team = ["12", "8"];
+    const team17: Team = ["1", "7"];
+    const team25: Team = ["2", "5"];
+
+    const rounds: Round[] = [
+      {
+        sitOuts: ["12"],
+        matches: [
+          [
+            ["10", "4"],
+            ["3", "5"],
+          ],
+          [
+            ["6", "7"],
+            ["8", "9"],
+          ],
+          [
+            ["0", "2"],
+            ["1", "11"],
+          ],
+        ],
+      },
+      {
+        sitOuts: ["7"],
+        matches: [
+          [
+            ["0", "8"],
+            ["11", "5"],
+          ],
+          [
+            ["12", "2"],
+            ["3", "9"],
+          ],
+          [
+            ["1", "10"],
+            ["4", "6"],
+          ],
+        ],
+      },
+      {
+        sitOuts: ["11"],
+        matches: [
+          [team36, team49],
+          [team010, team812],
+          [team17, team25],
+        ],
+      },
+    ];
+
+    const teams = [team36, team49, team010, team812, team17, team25];
+
+    /* Generated with:
+    for (let i = 0; i < 3; i++) {
+      rounds.push(await getNextBestRound(rounds, players, 3));
+    }
+    */
+
+    // Recreate the heuristics used for round 3 .
+    const heuristics = getHeuristics(rounds.slice(0, -1), players);
+
+    const preferences = getTeamPreferences(teams, heuristics);
+    console.log(preferences);
+  });
+
+  test("partner matching", () => {
+    const heuristics = getHeuristics(sampleRounds, samplePlayers);
+    const aDesiredPartners = samplePlayers
+      .filter((x) => x !== "a")
+      .sort(sortPartnerCompatibility("a", heuristics));
+
+    /*
+      a: {
+          playedWithCount: { min: 0, max: 1, b: 1, c: 0, d: 0, e: 1, f: 0 },
+          roundsSincePlayedWith: { min: 2, max: 9999, b: 3, c: 9999, d: 9999, e: 2, f: 9999 },
+          playedAgainstCount: { min: 0, max: 2, b: 0, c: 1, d: 2, e: 0, f: 1 },
+          roundsSincePlayedAgainst: { min: 2, max: 9999, b: 9999, c: 3, d: 2, e: 9999, f: 2 },
+          roundsSinceSitOut: 1,
+          sitOutCount: 1
+        }
+    */
+    expect(aDesiredPartners).toEqual([
+      "c", // Never played against.
+      "d", // Played against last match.
+      "f",
+      "b", // Partnered first.
+      "e", // Partnered second.
+    ]);
+
+    /*
+      f: {
+        playedWithCount: { min: 0, max: 1, a: 0, b: 0, c: 1, d: 1, e: 0 },
+        roundsSincePlayedWith: { min: 1, max: 9999, a: 9999, b: 9999, c: 1, d: 2, e: 9999 },
+        playedAgainstCount: { min: 0, max: 2, a: 1, b: 1, c: 0, d: 0, e: 2 },
+        roundsSincePlayedAgainst: { min: 1, max: 9999, a: 2, b: 1, c: 9999, d: 9999, e: 1 },
+        roundsSinceSitOut: 3,
+        sitOutCount: 1
+      }
+     */
+    const fDesiredPartners = samplePlayers
+      .filter((x) => x !== "f")
+      .sort(sortPartnerCompatibility("f", heuristics));
+
+    expect(fDesiredPartners).toEqual([
+      "a", // Played against two games ago.
+      "b", // Played against last match.
+      "e",
+      "d", // Partnered first.
+      "c", // Partnered second.
+    ]);
   });
 });
