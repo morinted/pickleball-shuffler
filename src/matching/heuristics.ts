@@ -1,4 +1,3 @@
-import { stableRoommateProblem } from "./irvings";
 import { PairMaker, Preferences } from "./ranked-matches";
 import { shuffle } from "./roommates";
 
