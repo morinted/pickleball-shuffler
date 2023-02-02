@@ -2,14 +2,10 @@ import {
   getHeuristics,
   getNextBestRound,
   getNextRound,
-  getTeamPreferences,
   INFINITY,
   PlayerHeuristicsDictionary,
   PlayerId,
   Round,
-  sortPartnerCompatibility,
-  sortTeamCompatibility,
-  Team,
 } from "../src/matching/heuristics";
 
 const roundsToString = (rounds: Round[]) =>

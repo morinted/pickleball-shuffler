@@ -114,24 +114,11 @@ const getDefaultHeuristics = (
 };
 
 /**
- * Who do I want to play with?
- *
- * Ideally people who I've not played with in a while, followed by people that I haven't played against recently.
- */
-const sortPartnerCompatibility =
-  (player: PlayerId, heuristics: PlayerHeuristicsDictionary) =>
-  (a: PlayerId, b: PlayerId) => {
-    const aScore = partnerScore(player, heuristics, a);
-    const bScore = partnerScore(player, heuristics, b);
-    return bScore - aScore;
-  };
-
-/**
  * How much do I want a particular partner?
  *
  * Most important is how many times I've played with them, then how long since we've partnered, then how long since we've faced off.
  */
-const partnerScore = (
+const getPartnerScore = (
   player: PlayerId,
   heuristics: PlayerHeuristicsDictionary,
   partner: PlayerId
@@ -148,10 +135,9 @@ const partnerScore = (
 
   const netSincePartnered = roundsSinceWith - minSinceWith;
   const netSinceAgainst = roundsSinceAgainst - minSinceAgainst;
-  const sawLastGameDenominator = netSinceAgainst === 0 ? 1 : 0;
   // How long since we've played, half-weighted since played against, divided by played with count.
   const playedWithScore =
-    netSincePartnered / (netPlayedWithCount * 3 + 1 + sawLastGameDenominator);
+    (netSincePartnered + netSinceAgainst) / (netPlayedWithCount * 3 + 1);
 
   return playedWithScore;
 };
@@ -159,7 +145,7 @@ const partnerScore = (
 /**
  * How much do I want to play against a particular opponent?
  */
-const opponentScore = (
+const getOpponentScore = (
   team: Team,
   heuristics: PlayerHeuristicsDictionary,
   opponent: Team
@@ -170,15 +156,35 @@ const opponentScore = (
       heuristics[player].roundsSincePlayedAgainst;
     const { min: minSinceWith, [target]: roundsSinceWith } =
       heuristics[player].roundsSincePlayedWith;
+    const {
+      min: minPlayedWith,
+      [target]: playedWithCount,
+      max: maxPlayedWith,
+    } = heuristics[player].playedWithCount;
+    const {
+      min: minPlayedAgainst,
+      [target]: playedAgainstCount,
+      max: maxPlayedAgainst,
+    } = heuristics[player].playedAgainstCount;
 
-    const sincePlayedWithMultiplier =
-      roundsSinceWith - minSinceWith === 0 ? 0.75 : 1;
+    const maximumGamesWith =
+      maxPlayedWith - minPlayedWith + maxPlayedAgainst - minPlayedAgainst || 1;
+    const netGamesWith =
+      playedWithCount - minPlayedWith + playedAgainstCount - minPlayedAgainst;
 
+    /**
+     * Discourage playing with people that you've seen an unlikely amount of times.
+     */
+    const frequencyReductionMultiplier =
+      (1 - netGamesWith / maximumGamesWith) * 0.5 + 0.5;
     const netRoundsSinceSeen =
       // Normalize with min to account for sit outs.
-      roundsSinceAgainst - minSinceAgainst;
+      Math.min(
+        roundsSinceAgainst - minSinceAgainst,
+        roundsSinceWith - minSinceWith
+      );
     // Square result to strongly favor high numbers.
-    return Math.pow(netRoundsSinceSeen, 2) * sincePlayedWithMultiplier;
+    return Math.pow(netRoundsSinceSeen, 2) * frequencyReductionMultiplier;
   };
 
   return team.reduce((score, player) => {
@@ -190,14 +196,6 @@ const opponentScore = (
     );
   }, 0);
 };
-
-const sortTeamCompatibility =
-  (team: Team, heuristics: PlayerHeuristicsDictionary) =>
-  (a: Team, b: Team) => {
-    const teamAScore = opponentScore(team, heuristics, a);
-    const teamBScore = opponentScore(team, heuristics, b);
-    return teamBScore - teamAScore;
-  };
 
 const minMaxHeuristicTypes: Array<
   keyof Omit<PlayerHeuristics, "roundsSinceSitOut" | "sitOutCount">
@@ -365,7 +363,7 @@ const getPartnerPreferences = (
     // Shuffle to help avoid earlier everyone ranking the same player highly.
     result[player] = players.reduce((acc: Record<string, number>, partner) => {
       if (player === partner) return acc;
-      acc[partner] = partnerScore(player, heuristics, partner);
+      acc[partner] = getPartnerScore(player, heuristics, partner);
       return acc;
     }, {});
     return result;
@@ -385,7 +383,7 @@ const getTeamPreferences = (
       (acc: Record<string, number>, opponent) => {
         const opponentString = opponent.toString();
         if (teamString === opponentString) return acc;
-        acc[opponentString] = opponentScore(team, heuristics, opponent);
+        acc[opponentString] = getOpponentScore(team, heuristics, opponent);
         return acc;
       },
       {}
@@ -666,9 +664,7 @@ export {
   getHeuristics,
   getNextRound,
   getNextBestRound,
-  opponentScore,
-  partnerScore,
-  sortTeamCompatibility,
-  sortPartnerCompatibility,
+  getOpponentScore as opponentScore,
+  getPartnerScore as partnerScore,
   getTeamPreferences,
 };
