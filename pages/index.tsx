@@ -1,6 +1,7 @@
 import { Button, Col, Container, Row, Spacer, Text } from "@nextui-org/react";
 import Link from "next/link";
 import Head from "next/head";
+import { ResumeActiveGame } from "../src/ResumeActiveGame";
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
         <Spacer y={1} />
         <Row>
           <Col>
+            <ResumeActiveGame />
             <Text h2>
               <Text
                 css={{
