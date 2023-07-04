@@ -11,7 +11,7 @@ import {
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
-import { People } from "react-iconly";
+import { AddUser, Delete, People } from "react-iconly";
 import { Court } from "../src/Court";
 import {
   newGame,
@@ -23,21 +23,23 @@ import {
 function NewGame() {
   const router = useRouter();
   const state = useShufflerState();
+  const { playersById } = state;
   const dispatch = useShufflerDispatch();
   const worker = useShufflerWorker();
 
   // Rerendering on text input was very slow due to NextUI textarea element.
   const playersRef = useRef<HTMLTextAreaElement>(null);
 
+  const [players, setPlayers] = useState<string[]>(state.players);
+
   const [courts, setCourts] = useState(state.courts.toString());
 
   // Load last time's players.
   useEffect(() => {
-    if (playersRef.current) {
-      playersRef.current.value = state.players
-        .map((player) => state.playersById[player].name)
-        .join("\n");
-    }
+    const playerIdsSorted = [...state.players].sort((a, b) =>
+      playersById[a].name.localeCompare(playersById[b].name)
+    );
+    setPlayers(playerIdsSorted);
     setCourts(state.courts.toString());
   }, [state.players, state.courts]);
 
@@ -78,21 +80,74 @@ function NewGame() {
                 <People />
                 <Spacer x={0.25} inline />
                 <Text id="players-label">
-                  Who's playing? One person per line.
+                  Who's playing?{" "}
+                  <Text i color="$gray800">
+                    {players.length && `${players.length} players`}
+                  </Text>
                 </Text>
+                <div style={{ flexGrow: "1" }} />
+                <Button size="xs" color="secondary" flat>
+                  Reset players
+                </Button>
               </Row>
               <Spacer y={0.5} />
-              <Textarea
-                autoFocus
-                ref={playersRef}
-                id="player-input"
-                aria-labelledby="players-label"
-                itemID="player-input-label"
-                placeholder={"Jo Swift\nKathryn Lob"}
-                minRows={6}
-                maxRows={14}
-                fullWidth
-              />
+              <Row align="flex-end">
+                <Textarea
+                  autoFocus
+                  ref={playersRef}
+                  minRows={1}
+                  maxRows={10}
+                  itemID="player-input-label"
+                  placeholder="Jo Swift, Kathryn Lob"
+                  bordered
+                  label="Add player"
+                  color="default"
+                  css={{
+                    flexGrow: 1,
+                  }}
+                />
+                <Spacer x={0.5} />
+                <Button
+                  auto
+                  color="primary"
+                  aria-label="Submit add player"
+                  icon={<AddUser />}
+                  type="submit"
+                />
+              </Row>
+              <Spacer y={0.5} />
+              {players.map((id, index) => (
+                <>
+                  <Row key={id}>
+                    <Input
+                      aria-label="Player"
+                      css={{
+                        flexGrow: 1,
+                      }}
+                      value={playersById[id].name}
+                      type="text"
+                      underlined
+                      onChange={(e) => setCourts(e.target.value)}
+                      fullWidth
+                    />
+                    <Spacer x={0.5} />
+                    <Button
+                      auto
+                      flat
+                      color="secondary"
+                      aria-label={`Remove player named ${playersById[id].name}`}
+                      icon={<Delete />}
+                      onPress={() => {
+                        // Toggle delete for this player
+                        setPlayers((players) =>
+                          players.filter((x) => x !== id)
+                        );
+                      }}
+                    />
+                  </Row>
+                  <Spacer y={!((index + 1) % 4) && index ? 1 : 0.1} />
+                </>
+              ))}
             </label>
             <Spacer y={1} />
             <label>
@@ -106,6 +161,7 @@ function NewGame() {
                 id="court-input"
                 aria-labelledby="courts-label"
                 type="number"
+                bordered
                 min={1}
                 value={courts}
                 onChange={(e) => setCourts(e.target.value)}
