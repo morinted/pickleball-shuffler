@@ -11,7 +11,7 @@ import {
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
-import { AddUser, Delete, People } from "react-iconly";
+import { AddUser, Delete, People, User } from "react-iconly";
 import { Court } from "../src/Court";
 import {
   newGame,
@@ -118,7 +118,8 @@ function NewGame() {
               <Spacer y={0.5} />
               {players.map((id, index) => (
                 <>
-                  <Row key={id}>
+                  <Row key={id} align="center">
+                    <User primaryColor="#888" size="medium" />
                     <Input
                       aria-label="Player"
                       css={{
@@ -145,7 +146,7 @@ function NewGame() {
                       }}
                     />
                   </Row>
-                  <Spacer y={!((index + 1) % 4) && index ? 1 : 0.1} />
+                  <Spacer y={0.1} />
                 </>
               ))}
             </label>
