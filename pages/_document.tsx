@@ -1,6 +1,5 @@
 import React from "react";
 import Document, { Html, Head, Main, NextScript } from "next/document";
-import { CssBaseline } from "@nextui-org/react";
 
 class MyDocument extends Document {
   // @ts-expect-error
@@ -16,7 +15,6 @@ class MyDocument extends Document {
     return (
       <Html lang="en">
         <Head>
-          {CssBaseline.flush()}
           <meta name="application-name" content="Jumbled Doubles" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta

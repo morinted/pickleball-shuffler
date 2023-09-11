@@ -1,4 +1,11 @@
-import { Badge, Button, Navbar, Row } from "@nextui-org/react";
+import {
+  Badge,
+  Button,
+  Navbar,
+  NavbarBrand,
+  NavbarContent,
+  NavbarItem,
+} from "@nextui-org/react";
 import Link from "next/link";
 import { Grandstander } from "@next/font/google";
 // @ts-expect-error
@@ -19,10 +26,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   useLoadState();
   return (
     <main>
-      <Navbar>
-        <Navbar.Brand>
+      <Navbar isBordered>
+        <NavbarBrand>
           <Link href="/">
-            <Row align="center" justify="center">
+            <div className="flex justify-center items-center">
               <div
                 className={grandstander.className}
                 style={{
@@ -33,6 +40,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   marginTop: "0.5rem",
                   color: "black",
                   fontWeight: 600,
+                  letterSpacing: "0.05rem",
                 }}
               >
                 <div
@@ -40,6 +48,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     fontSize: "1.1em",
                     height: "0.2em",
                     marginLeft: "-0.2rem",
+                    fontWeight: 600,
                   }}
                   id="jumbled"
                 >
@@ -48,32 +57,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <br />
                 Doubles
               </div>
-              <Badge
-                isSquared
-                variant="bordered"
-                size="sm"
-                color="secondary"
-                style={{
-                  marginLeft: "1.5rem",
-                }}
-              >
+              <div className="text-secondary px-1 ml-2 h-min text-xs font-bold border-secondary border-2 rounded">
                 Beta
-              </Badge>
-            </Row>
+              </div>
+            </div>
           </Link>
-        </Navbar.Brand>
+        </NavbarBrand>
 
-        <Navbar.Content>
+        <NavbarContent justify="end">
           {router.asPath === "/" && (
-            <Navbar.Item id="new-game-item">
+            <NavbarItem id="new-game-item">
               <Link href="/new" id="new-game-button">
-                <Button auto flat>
-                  New game
-                </Button>
+                <Button variant="flat">New game</Button>
               </Link>
-            </Navbar.Item>
+            </NavbarItem>
           )}
-        </Navbar.Content>
+        </NavbarContent>
       </Navbar>
       {children}
     </main>

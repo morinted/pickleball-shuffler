@@ -1,4 +1,4 @@
-import { Button, Col, Container, Row, Spacer, Text } from "@nextui-org/react";
+import { Button, Spacer } from "@nextui-org/react";
 import Link from "next/link";
 import Head from "next/head";
 import { ResumeActiveGame } from "../src/ResumeActiveGame";
@@ -15,108 +15,76 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <Container>
+      <section className="container">
         <Spacer y={1} />
-        <Row>
-          <Col>
-            <ResumeActiveGame />
-            <Text h2>
-              <Text
-                css={{
-                  textGradient: "235deg, $blue600 -20%, $pink600 50%",
-                }}
-                h2
-                as="span"
-              >
-                Jumble&nbsp;
-              </Text>
-              your social play.
-            </Text>
-            <Text>
-              Fairly shuffle doubles games so that you play with and against
-              everyone.
-            </Text>
+        <div className="flex flex-col">
+          {/* <ResumeActiveGame /> */}
+          <h2 className="text-6xl">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-pink-600">
+              Jumble&nbsp;
+            </span>
+            your social play.
+          </h2>
+          <p>
+            Fairly shuffle doubles games so that you play with and against
+            everyone.
+          </p>
 
-            <Spacer y={2} />
-            <Text h3>Why jumble?</Text>
-            <Text>
-              Social play can be hard to do <Text b>fairly.</Text>
-            </Text>
-            <Text>
-              Using Jumbled Doubles, you can ensure an even distribution of sit
-              outs, partners, and opponents across any number of courts.
-            </Text>
-            <Text>
-              It's an alternative to a round-robin format (fixed partnerships)
-              and ladder courts (more competitive).
-            </Text>
+          <Spacer y={2} />
+          <h3>Why jumble?</h3>
+          <p>
+            Social play can be hard to do <b>fairly.</b>
+          </p>
+          <p>
+            Using Jumbled Doubles, you can ensure an even distribution of sit
+            outs, partners, and opponents across any number of courts.
+          </p>
+          <p>
+            It's an alternative to a round-robin format (fixed partnerships) and
+            ladder courts (more competitive).
+          </p>
 
-            <Spacer y={1} />
-            <Link href="/new">
-              <Button>Start shufflin'</Button>
-            </Link>
+          <Spacer y={1} />
+          <Link href="/new">
+            <Button>Start shufflin'</Button>
+          </Link>
 
-            <Spacer y={2} />
-            <Text h3>Compatible sports</Text>
-            <Text>
-              This site is for any sport or activity where you play in teams of
-              two:
-            </Text>
-            <ul>
-              <li>
-                <Text>🥒 Pickleball</Text>
-              </li>
-              <li>
-                <Text>🎾 Tennis</Text>
-              </li>
-              <li>
-                <Text>🏓 Table tennis (ping-pong)</Text>
-              </li>
-              <li>
-                <Text>🏸 Badminton</Text>
-              </li>
-              <li>
-                <Text>🎾 Padel</Text>
-              </li>
-              <li>
-                <Text>🏐 Roundnet (spike ball)</Text>
-              </li>
-              <li>
-                <Text>🃏 Card games (Bridge, Euchre, etc.)</Text>
-              </li>
-            </ul>
+          <Spacer y={2} />
+          <h3>Compatible sports</h3>
+          <p>
+            This site is for any sport or activity where you play in teams of
+            two:
+          </p>
+          <ul>
+            <li>🥒 Pickleball</li>
+            <li>🎾 Tennis</li>
+            <li>🏓 Table tennis (ping-pong)</li>
+            <li>🏸 Badminton</li>
+            <li>🎾 Padel</li>
+            <li>🏐 Roundnet (spike ball)</li>
+            <li>🃏 Card games (Bridge, Euchre, etc.)</li>
+          </ul>
 
-            <Spacer y={1.5} />
+          <Spacer y={1.5} />
 
-            <Text h3>Beta</Text>
-            <Text>
-              <Text b color="primary">
-                Jumbled Doubles is new!
-              </Text>{" "}
-              New features are{" "}
-              <a href="https://github.com/morinted/pickleball-shuffler/issues">
-                planned
-              </a>{" "}
-              and the shuffling may not be perfect.
-            </Text>
-            <Text>
-              If you find{" "}
-              <Text color="error" b>
-                problems
-              </Text>{" "}
-              or have{" "}
-              <Text color="secondary" b>
-                feedback
-              </Text>{" "}
-              then please send an email to{" "}
-              <a href="mailto:jumbled@ted.mozmail.com">
-                jumbled@ted.mozmail.com
-              </a>
-            </Text>
-          </Col>
-        </Row>
+          <h3>Beta</h3>
+          <p>
+            <span className="b primary">Jumbled Doubles is new!</span> New
+            features are{" "}
+            <a href="https://github.com/morinted/pickleball-shuffler/issues">
+              planned
+            </a>{" "}
+            and the shuffling may not be perfect.
+          </p>
+          <p>
+            If you find <span className="text-danger font-bold">problems</span>{" "}
+            or have <span className="text-secondary font-bold">feedback</span>{" "}
+            then please send an email to{" "}
+            <a href="mailto:jumbled@ted.mozmail.com">jumbled@ted.mozmail.com</a>
+          </p>
+        </div>
         <Spacer y={2} />
-      </Container>
+      </section>
     </>
   );
 }
