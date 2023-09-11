@@ -7,7 +7,7 @@ import {
   NavbarItem,
 } from "@nextui-org/react";
 import Link from "next/link";
-import { Grandstander } from "@next/font/google";
+import { Grandstander } from "next/font/google";
 // @ts-expect-error
 import CircleType from "circletype";
 import { useEffect } from "react";
@@ -49,6 +49,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     height: "0.2em",
                     marginLeft: "-0.2rem",
                     fontWeight: 600,
+                    letterSpacing: "0.15rem",
                   }}
                   id="jumbled"
                 >
@@ -57,7 +58,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <br />
                 Doubles
               </div>
-              <div className="text-secondary px-1 ml-2 h-min text-xs font-bold border-secondary border-2 rounded">
+              <div className="text-secondary px-1 ml-3 h-min text-xs font-bold border-secondary border-2 rounded">
                 Beta
               </div>
             </div>

@@ -1890,13 +1890,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@next/font@npm:^13.4.8":
-  version: 13.4.8
-  resolution: "@next/font@npm:13.4.8"
-  checksum: fa666ff5c431565e3517545d997607bb4e96744c3e9fc8256a16aefd47454b8396f707fba8ab706ca305652bef742df5ef33ed588b8503851b93e92744142b9c
-  languageName: node
-  linkType: hard
-
 "@next/swc-darwin-arm64@npm:13.4.8":
   version: 13.4.8
   resolution: "@next/swc-darwin-arm64@npm:13.4.8"
@@ -9203,7 +9196,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "pickleball-shuffler@workspace:."
   dependencies:
-    "@next/font": ^13.4.8
     "@nextui-org/react": ^2.1.12
     "@testing-library/jest-dom": ^5.16.5
     "@testing-library/react": ^13.4.0

@@ -19,8 +19,8 @@ export default function Home() {
         <Spacer y={1} />
         <div className="flex flex-col">
           {/* <ResumeActiveGame /> */}
-          <h2 className="text-6xl">
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-pink-600">
+          <h2 className="text-4xl font-semibold">
+            <span className="text-transparent bg-clip-text bg-gradient-to-l from-blue-600 to-pink-600">
               Jumble&nbsp;
             </span>
             your social play.
