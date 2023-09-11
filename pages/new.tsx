@@ -10,7 +10,7 @@ import {
 } from "@nextui-org/react";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { AddUser, Delete, People, User } from "react-iconly";
 import { Court } from "../src/Court";
 import {
@@ -19,6 +19,7 @@ import {
   useShufflerState,
   useShufflerWorker,
 } from "../src/useShuffler";
+import { ResetPlayersModal } from "../src/ResetPlayersModal";
 
 function NewGame() {
   const router = useRouter();
@@ -26,6 +27,7 @@ function NewGame() {
   const { playersById } = state;
   const dispatch = useShufflerDispatch();
   const worker = useShufflerWorker();
+  const [modal, setModal] = useState<"none" | "reset-players">("none");
 
   // Rerendering on text input was very slow due to NextUI textarea element.
   const playersRef = useRef<HTMLTextAreaElement>(null);
@@ -34,25 +36,32 @@ function NewGame() {
 
   const [courts, setCourts] = useState(state.courts.toString());
 
+  const handleAddPlayers = () => {
+    const names = Array.from(
+      new Set(
+        (playersRef.current?.value || "")
+          .split(/[\n,]+/)
+          .map((x) => x.trim())
+          .filter((x) => !!x)
+      )
+    );
+    setPlayers((players) => [...players, ...names]);
+    if (playersRef.current) playersRef.current.value = "";
+    playersRef.current?.focus();
+  };
+
   // Load last time's players.
   useEffect(() => {
-    const playerIdsSorted = [...state.players].sort((a, b) =>
-      playersById[a].name.localeCompare(playersById[b].name)
-    );
-    setPlayers(playerIdsSorted);
+    const playerNames = [...state.players]
+      .map((id) => playersById[id].name)
+      .sort((a, b) => a.localeCompare(b));
+    setPlayers(playerNames);
     setCourts(state.courts.toString());
   }, [state.players, state.courts]);
 
   const handleNewGame = async () => {
     if (!playersRef.current) return;
-    const names = Array.from(
-      new Set(
-        playersRef.current.value
-          .split("\n")
-          .map((x) => x.trim())
-          .filter((x) => !!x)
-      )
-    );
+    const names = players;
     if (names.length < 4) return;
     const courtCount = parseInt(courts);
     if (courtCount < 1) return;
@@ -61,6 +70,10 @@ function NewGame() {
       courts: courtCount,
     });
     router.push("/rounds");
+  };
+
+  const handleResetPlayers = () => {
+    setModal("reset-players");
   };
 
   return (
@@ -72,6 +85,15 @@ function NewGame() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <Container xs>
+        <ResetPlayersModal
+          open={modal === "reset-players"}
+          onClose={() => setModal("none")}
+          onSubmit={() => {
+            setPlayers([]);
+            playersRef.current?.focus();
+            setModal("none");
+          }}
+        />
         <Spacer y={1} />
         <Row justify="center" align="center">
           <Col>
@@ -86,7 +108,12 @@ function NewGame() {
                   </Text>
                 </Text>
                 <div style={{ flexGrow: "1" }} />
-                <Button size="xs" color="secondary" flat>
+                <Button
+                  size="xs"
+                  color="secondary"
+                  flat
+                  onClick={() => handleResetPlayers()}
+                >
                   Reset players
                 </Button>
               </Row>
@@ -100,7 +127,7 @@ function NewGame() {
                   itemID="player-input-label"
                   placeholder="Jo Swift, Kathryn Lob"
                   bordered
-                  label="Add player"
+                  label="Add players"
                   color="default"
                   css={{
                     flexGrow: 1,
@@ -110,25 +137,37 @@ function NewGame() {
                 <Button
                   auto
                   color="primary"
-                  aria-label="Submit add player"
+                  aria-label="Add players in text box"
                   icon={<AddUser />}
-                  type="submit"
+                  type="button"
+                  onClick={() => handleAddPlayers()}
                 />
               </Row>
               <Spacer y={0.5} />
-              {players.map((id, index) => (
-                <>
-                  <Row key={id} align="center">
+              {players.map((name, index) => (
+                <Fragment key={index}>
+                  <Row align="center">
                     <User primaryColor="#888" size="medium" />
+                    <Text size="$sm" color="#555" style={{ width: "1rem" }}>
+                      {index + 1}
+                    </Text>
+                    <Spacer x={0.25} />
                     <Input
                       aria-label="Player"
                       css={{
                         flexGrow: 1,
                       }}
-                      value={playersById[id].name}
+                      value={name}
                       type="text"
                       underlined
-                      onChange={(e) => setCourts(e.target.value)}
+                      onChange={(e) => {
+                        const newName = e.currentTarget.value;
+                        setPlayers([
+                          ...players.slice(0, index),
+                          newName,
+                          ...players.slice(index + 1),
+                        ]);
+                      }}
                       fullWidth
                     />
                     <Spacer x={0.5} />
@@ -136,18 +175,19 @@ function NewGame() {
                       auto
                       flat
                       color="secondary"
-                      aria-label={`Remove player named ${playersById[id].name}`}
+                      aria-label={`Remove player named ${name}`}
                       icon={<Delete />}
                       onPress={() => {
-                        // Toggle delete for this player
-                        setPlayers((players) =>
-                          players.filter((x) => x !== id)
-                        );
+                        // Delete this player
+                        setPlayers((players) => [
+                          ...players.slice(0, index),
+                          ...players.slice(index + 1),
+                        ]);
                       }}
                     />
                   </Row>
                   <Spacer y={0.1} />
-                </>
+                </Fragment>
               ))}
             </label>
             <Spacer y={1} />
