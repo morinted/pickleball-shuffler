@@ -12,6 +12,7 @@ type NewRoundOptions = {
 type NewGameOptions = {
   names: string[];
   courts: number;
+  courtNames: string[];
 };
 
 type EditCourts = {
@@ -34,6 +35,7 @@ type Action =
         players: PlayerId[];
         playersById: Record<PlayerId, Player>;
         courts: number;
+        courtNames: string[];
       };
     }
   | {
@@ -65,6 +67,7 @@ type State = {
   players: PlayerId[];
   rounds: Round[];
   courts: number;
+  courtNames: string[];
   volunteerSitoutsByRound: PlayerId[][];
   playersById: Record<PlayerId, Player>;
   generating: boolean;
@@ -78,6 +81,7 @@ const defaultState: State = {
   playersById: {},
   rounds: [],
   courts: 2,
+  courtNames: [],
   generating: false,
   cacheLoaded: false,
 };
@@ -112,8 +116,14 @@ function loadFromCache(previousState: State): State {
     return existingState;
   }
   try {
-    const { players, rounds, courts, volunteerSitoutsByRound, playersById } =
-      JSON.parse(storageState);
+    const {
+      players,
+      rounds,
+      courts,
+      volunteerSitoutsByRound,
+      playersById,
+      courtNames = [],
+    } = JSON.parse(storageState);
     if (
       !Array.isArray(players) ||
       !Array.isArray(rounds) ||
@@ -128,6 +138,7 @@ function loadFromCache(previousState: State): State {
       volunteerSitoutsByRound,
       rounds,
       courts,
+      courtNames,
       cacheLoaded: true,
       generating: false,
     };
@@ -139,13 +150,20 @@ function loadFromCache(previousState: State): State {
 function cacheState(state: State): State {
   if (typeof window === "undefined") return state;
   window.setTimeout(() => {
-    const { players, courts, rounds, volunteerSitoutsByRound, playersById } =
-      state;
+    const {
+      players,
+      courts,
+      courtNames,
+      rounds,
+      volunteerSitoutsByRound,
+      playersById,
+    } = state;
     window.localStorage.setItem(
       "state",
       JSON.stringify({
         players,
         courts,
+        courtNames,
         rounds,
         volunteerSitoutsByRound,
         playersById,
@@ -159,13 +177,14 @@ function shufflerReducer(state: State, action: Action): State {
   switch (action.type) {
     case "new-game-start": {
       const { payload } = action;
-      const { players, playersById, courts } = payload;
+      const { players, playersById, courts, courtNames } = payload;
 
       return cacheState({
         ...state,
         players,
         playersById,
         courts,
+        courtNames,
         rounds: [],
         volunteerSitoutsByRound: [],
         generating: true,
@@ -248,7 +267,7 @@ async function newGame(
 ) {
   if (!worker) return;
   if (state.generating) return;
-  const { courts, names } = payload;
+  const { courts, names, courtNames } = payload;
   const players = createPlayers(names).sort((a, b) =>
     a.name.localeCompare(b.name)
   );
@@ -256,7 +275,12 @@ async function newGame(
   const playersById = getPlayersById({}, players);
   dispatch({
     type: "new-game-start",
-    payload: { players: players.map(({ id }) => id), playersById, courts },
+    payload: {
+      players: players.map(({ id }) => id),
+      playersById,
+      courts,
+      courtNames,
+    },
   });
   try {
     const nextRound = await generateRound(worker, [], playerIds, courts, []);
