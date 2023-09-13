@@ -236,7 +236,10 @@ function NewGame() {
                   id="courts-label"
                   color={courtsError ? "error" : "default"}
                 >
-                  How many courts are available?
+                  How many courts are available?{" "}
+                  <Text i color="$gray800">
+                    Enough players for {Math.floor(players.length / 4)}
+                  </Text>
                 </Text>
               </Row>
               <Spacer y={0.5} />
