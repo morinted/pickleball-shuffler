@@ -135,7 +135,7 @@ function NewGame() {
                 <Text id="players-label">
                   Who's playing?{" "}
                   <Text i color="$gray800">
-                    {players.length && `${players.length} players`}
+                    {players.length ? `${players.length} players` : ""}
                   </Text>
                 </Text>
                 <div style={{ flexGrow: "1" }} />
@@ -238,7 +238,11 @@ function NewGame() {
                 >
                   How many courts are available?{" "}
                   <Text i color="$gray800">
-                    Enough players for {Math.floor(players.length / 4)}
+                    {Math.floor(players.length / 4) ? (
+                      <>Enough players for {Math.floor(players.length / 4)}</>
+                    ) : (
+                      ""
+                    )}
                   </Text>
                 </Text>
               </Row>
