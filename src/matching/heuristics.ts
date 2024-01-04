@@ -31,8 +31,8 @@ export type Team = [PlayerId, PlayerId];
 export const INFINITY = 9999;
 
 const GENERATIONS = 5;
-const ROUND_LOOKAHEAD = 4;
-const ROUND_ATTEMPTS = 25;
+const ROUND_LOOKAHEAD = 2;
+const ROUND_ATTEMPTS = 2;
 
 /**
  * Populate default player scores for each person.
@@ -126,18 +126,15 @@ const getPartnerScore = (
   const {} = heuristics[player].roundsSincePlayedAgainst;
   const { min: minSinceWith, [partner]: roundsSinceWith } =
     heuristics[player].roundsSincePlayedWith;
-  const { min: minSinceAgainst, [partner]: roundsSinceAgainst } =
-    heuristics[player].roundsSincePlayedAgainst;
   const { min: minPlayedCount, [partner]: playedWithCount } =
     heuristics[player].playedWithCount;
 
   const netPlayedWithCount = playedWithCount - minPlayedCount;
 
   const netSincePartnered = roundsSinceWith - minSinceWith;
-  const netSinceAgainst = roundsSinceAgainst - minSinceAgainst;
-  // How long since we've played, half-weighted since played against, divided by played with count.
+  // How long since we've played, half-weighted since played against, minimized by imbalanced played with count.
   const playedWithScore =
-    (netSincePartnered + netSinceAgainst) / (netPlayedWithCount * 3 + 1);
+    netSincePartnered / (netPlayedWithCount * netPlayedWithCount + 1);
 
   return playedWithScore;
 };
@@ -355,12 +352,11 @@ const getHeuristics = (
 /**
  * Get scores for each partner for each other partner.
  */
-const getPartnerPreferences = (
+export const getPartnerPreferences = (
   players: PlayerId[],
   heuristics: PlayerHeuristicsDictionary
 ) => {
   return players.reduce((result: Preferences, player) => {
-    // Shuffle to help avoid earlier everyone ranking the same player highly.
     result[player] = players.reduce((acc: Record<string, number>, partner) => {
       if (player === partner) return acc;
       acc[partner] = getPartnerScore(player, heuristics, partner);
