@@ -167,9 +167,6 @@ describe("calculateHeuristics()", () => {
       }, 0)
       .sort()
       .flatMap((count, index) => (index % 2 ? [] : [count]));
-    console.log(maxPlayedWithCounts);
-    console.log(getHeuristics(rounds, players));
-    console.log(getPartnerPreferences(players, getHeuristics(rounds, players)));
 
     expect(getStats(maxPlayedWithCounts).mean).toBeLessThanOrEqual(15);
   });
@@ -220,7 +217,7 @@ describe("calculateHeuristics()", () => {
 
   test("5 players, 15 games", async () => {
     const results = [];
-    for (let generations = 0; generations < 10; generations++) {
+    for (let generations = 0; generations < 50; generations++) {
       const players = sampleNames.slice(0, 5);
       const rounds: Round[] = [];
       for (let i = 0; i < 15; i++) {

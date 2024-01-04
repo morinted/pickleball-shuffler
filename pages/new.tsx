@@ -41,6 +41,7 @@ function NewGame() {
   const [courtNames, setCourtNames] = useState<string[]>([]);
 
   const handleAddPlayers = () => {
+    if (!playersRef.current?.value) return;
     const names = Array.from(
       new Set(
         (playersRef.current?.value || "")
@@ -358,7 +359,17 @@ function NewGame() {
               </>
             )}
             <Spacer y={1} />
-            <Button onPress={() => handleNewGame()}>Let's play!</Button>
+            <Button
+              onPress={() => {
+                if (playersRef.current?.value) {
+                  handleAddPlayers();
+                } else {
+                  handleNewGame();
+                }
+              }}
+            >
+              Let's play!
+            </Button>
           </Col>
         </Row>
       </Container>
