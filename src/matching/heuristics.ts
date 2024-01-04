@@ -2,6 +2,8 @@ import { PairMaker, Preferences } from "./ranked-matches";
 import { shuffle } from "./roommates";
 
 export type PlayerId = string;
+export type MatchIdentifier = string;
+export type MatchCounts = { [key: MatchIdentifier]: number };
 export type Match = [Team, Team];
 export type Round = {
   matches: Array<Match>;
@@ -30,9 +32,9 @@ export type Team = [PlayerId, PlayerId];
 // Instead of using Infinity, use a high number so that comparative values can be calculated.
 export const INFINITY = 9999;
 
-const GENERATIONS = 5;
-const ROUND_LOOKAHEAD = 4;
-const ROUND_ATTEMPTS = 25;
+const GENERATIONS = 4;
+const ROUND_LOOKAHEAD = 3;
+const ROUND_ATTEMPTS = 20;
 
 /**
  * Populate default player scores for each person.
@@ -126,20 +128,43 @@ const getPartnerScore = (
   const {} = heuristics[player].roundsSincePlayedAgainst;
   const { min: minSinceWith, [partner]: roundsSinceWith } =
     heuristics[player].roundsSincePlayedWith;
-  const { min: minSinceAgainst, [partner]: roundsSinceAgainst } =
-    heuristics[player].roundsSincePlayedAgainst;
   const { min: minPlayedCount, [partner]: playedWithCount } =
     heuristics[player].playedWithCount;
 
   const netPlayedWithCount = playedWithCount - minPlayedCount;
 
   const netSincePartnered = roundsSinceWith - minSinceWith;
-  const netSinceAgainst = roundsSinceAgainst - minSinceAgainst;
-  // How long since we've played, half-weighted since played against, divided by played with count.
+  // How long since we've played, half-weighted since played against, minimized by imbalanced played with count.
   const playedWithScore =
-    (netSincePartnered + netSinceAgainst) / (netPlayedWithCount * 3 + 1);
+    netSincePartnered / (netPlayedWithCount * netPlayedWithCount + 1);
 
   return playedWithScore;
+};
+
+const getMatchIdentifier = (match: Match): MatchIdentifier => {
+  const [teamA, teamB] = match;
+  const teamAIdentifier = teamA.sort().join(" ");
+  const teamBIdentifier = teamB.sort().join(" ");
+  return [teamAIdentifier, teamBIdentifier].sort().join("|");
+};
+
+const getUniqueMatchCounts = (
+  rounds: Round[],
+  previousCounts?: MatchCounts
+): [MatchCounts, number] => {
+  const result: MatchCounts = previousCounts
+    ? JSON.parse(JSON.stringify(previousCounts))
+    : {};
+  let duplicates = 0;
+  rounds.forEach((round) => {
+    round.matches.forEach((match) => {
+      const matchId = getMatchIdentifier(match);
+      const previousMatches = result[matchId] || 0;
+      if (previousMatches) duplicates += 1;
+      result[matchId] = previousMatches + 1;
+    });
+  });
+  return [result, duplicates];
 };
 
 /**
@@ -148,7 +173,8 @@ const getPartnerScore = (
 const getOpponentScore = (
   team: Team,
   heuristics: PlayerHeuristicsDictionary,
-  opponent: Team
+  opponent: Team,
+  matchCounts: MatchCounts
 ) => {
   // Ideally you want to play against a team with people that you haven't seen (partner or opponent) for the longest.
   const calculateDesirability = (player: PlayerId, target: PlayerId) => {
@@ -187,14 +213,20 @@ const getOpponentScore = (
     return Math.pow(netRoundsSinceSeen, 2) * frequencyReductionMultiplier;
   };
 
-  return team.reduce((score, player) => {
-    return (
-      score +
-      opponent.reduce((result, target) => {
-        return result + calculateDesirability(player, target);
-      }, 0)
-    );
-  }, 0);
+  // Strongly discourage repeated matchups (remove duplicates where teams and players are the same).
+  const repeatedGameCount: number =
+    matchCounts[getMatchIdentifier([team, opponent])] || 0;
+  return (
+    team.reduce((score, player) => {
+      return (
+        score +
+        opponent.reduce((result, target) => {
+          return result + calculateDesirability(player, target);
+        }, 0)
+      );
+    }, 0) /
+    (Math.pow(repeatedGameCount, 2) + 1)
+  );
 };
 
 const minMaxHeuristicTypes: Array<
@@ -355,12 +387,11 @@ const getHeuristics = (
 /**
  * Get scores for each partner for each other partner.
  */
-const getPartnerPreferences = (
+export const getPartnerPreferences = (
   players: PlayerId[],
   heuristics: PlayerHeuristicsDictionary
 ) => {
   return players.reduce((result: Preferences, player) => {
-    // Shuffle to help avoid earlier everyone ranking the same player highly.
     result[player] = players.reduce((acc: Record<string, number>, partner) => {
       if (player === partner) return acc;
       acc[partner] = getPartnerScore(player, heuristics, partner);
@@ -375,7 +406,8 @@ const getPartnerPreferences = (
  */
 const getTeamPreferences = (
   teams: Array<Team>,
-  heuristics: PlayerHeuristicsDictionary
+  heuristics: PlayerHeuristicsDictionary,
+  uniqueMatchCounts: MatchCounts
 ) => {
   return teams.reduce((result: Preferences, team) => {
     const teamString = team.toString();
@@ -383,7 +415,12 @@ const getTeamPreferences = (
       (acc: Record<string, number>, opponent) => {
         const opponentString = opponent.toString();
         if (teamString === opponentString) return acc;
-        acc[opponentString] = getOpponentScore(team, heuristics, opponent);
+        acc[opponentString] = getOpponentScore(
+          team,
+          heuristics,
+          opponent,
+          uniqueMatchCounts
+        );
         return acc;
       },
       {}
@@ -503,13 +540,20 @@ async function getNextRound(
   volunteerSitouts?: PlayerId[],
   heuristics: PlayerHeuristicsDictionary = getHeuristics(rounds, players)
 ): Promise<[Round, { bestTeamScore: number; bestMatchesScore: number }]> {
-  // TODO: remove dupes
+  const [uniqueMatchCounts] = getUniqueMatchCounts(rounds);
+
   let bestTeamScore = Infinity;
   let bestTeams: { teams: Team[]; sitOuts: PlayerId[] } = {
     teams: [],
     sitOuts: [],
   };
-  for (let i = 0; i < GENERATIONS; i++) {
+
+  const targetUniqueGenerations = Math.floor(players.length / 4) * 2;
+
+  const seenTeams: { [key: string]: number } = {};
+  let uniqueTeamSets: number = 0;
+
+  while (uniqueTeamSets < targetUniqueGenerations) {
     await new Promise((resolve) => resolve(undefined));
     /* Decide who sits out. */
     const [sitoutPlayers, roundPlayers] = getSitOuts(
@@ -530,6 +574,14 @@ async function getNextRound(
     const partnerMaker = new PairMaker(partnerPreferences);
     partnerMaker.solve();
     const teams: Team[] = partnerMaker.solvedGroups as Team[];
+
+    const teamSetCount = seenTeams[JSON.stringify(teams)] || 0;
+    seenTeams[JSON.stringify(teams)] = teamSetCount + 1;
+    if (teamSetCount) {
+      continue;
+    } else {
+      uniqueTeamSets += 1;
+    }
 
     // Count the number of people who are partnering with someone who is at their max (and not because it's their min)
     const score = teams.reduce((result: number, [a, b]) => {
@@ -561,7 +613,11 @@ async function getNextRound(
   let bestMatches: Match[] | null = null;
   for (let i = 0; i < GENERATIONS; i++) {
     await new Promise((resolve) => resolve(undefined));
-    const teamPreferences = getTeamPreferences(bestTeams.teams, heuristics);
+    const teamPreferences = getTeamPreferences(
+      bestTeams.teams,
+      heuristics,
+      uniqueMatchCounts
+    );
     const teamMaker = new PairMaker(teamPreferences);
     teamMaker.solve();
     const matches = teamMaker.solvedGroups.map((match) =>
@@ -573,16 +629,22 @@ async function getNextRound(
       players,
       heuristics
     );
-    const averageScore = players.reduce((score, player) => {
-      const { roundsSincePlayedAgainst } = newHeuristics[player];
-      const playerScore = Math.sqrt(
-        players.reduce((sum, opponent) => {
-          if (opponent === player) return sum;
-          return sum + Math.pow(roundsSincePlayedAgainst[opponent], 2);
-        }, 0)
-      );
-      return score + playerScore / players.length;
-    }, 0);
+    const [, newDuplicates] = getUniqueMatchCounts(
+      [{ matches, sitOuts: bestTeams.sitOuts }],
+      uniqueMatchCounts
+    );
+    const averageScore =
+      Math.pow(newDuplicates + 1, 2) *
+      players.reduce((score, player) => {
+        const { roundsSincePlayedAgainst } = newHeuristics[player];
+        const playerScore = Math.sqrt(
+          players.reduce((sum, opponent) => {
+            if (opponent === player) return sum;
+            return sum + Math.pow(roundsSincePlayedAgainst[opponent], 2);
+          }, 0)
+        );
+        return score + playerScore / players.length;
+      }, 0);
 
     if (averageScore < bestMatchesScore) {
       bestMatchesScore = averageScore;
@@ -609,9 +671,15 @@ async function getNextBestRound(
   // Go forward 3 rounds a few times and choose the best direction.
   // Try to avoid local tight spots.
   const heuristics = getHeuristics(rounds, players);
-  let bestRoundScore: { opponentScore: number; partnerScore: number } = {
+  const [matchCounts] = getUniqueMatchCounts(rounds);
+  let bestRoundScore: {
+    opponentScore: number;
+    partnerScore: number;
+    duplicates: number;
+  } = {
     opponentScore: Infinity,
     partnerScore: Infinity,
+    duplicates: Infinity,
   };
   let selectedRound: Round | null = null;
   for (let attempt = 0; attempt < ROUND_ATTEMPTS; attempt++) {
@@ -620,6 +688,7 @@ async function getNextBestRound(
     let newRounds = [];
     let partnerScore = 0;
     let opponentScore = Infinity;
+    let duplicates = 0;
     for (
       let roundGeneration = 0;
       roundGeneration < ROUND_LOOKAHEAD;
@@ -633,26 +702,28 @@ async function getNextBestRound(
           volunteerSitouts,
           heuristics
         );
+        const [, newDuplicates] = getUniqueMatchCounts([newRound], matchCounts);
         newHeuristics = getHeuristics([newRound], players, newHeuristics);
         newRounds.push(newRound);
-        // We care more about the short term team score.
-        partnerScore =
+        // We care more about the short term team score and duplicates.
+        partnerScore +=
           roundStats.bestTeamScore * (ROUND_LOOKAHEAD - roundGeneration);
-
-        // We only care about the end-result for matches.
-        opponentScore = roundStats.bestMatchesScore;
+        duplicates += newDuplicates * (ROUND_LOOKAHEAD - roundGeneration);
+        opponentScore += roundStats.bestMatchesScore;
       } catch (e) {
         // No round found.
       }
     }
 
+    if (bestRoundScore.duplicates < duplicates) continue;
     if (bestRoundScore.partnerScore < partnerScore) continue;
     // Partner score better or equal. Opponent score counts for fallback.
     if (
+      duplicates < bestRoundScore.duplicates ||
       partnerScore < bestRoundScore.partnerScore ||
       opponentScore < bestRoundScore.opponentScore
     ) {
-      bestRoundScore = { partnerScore, opponentScore };
+      bestRoundScore = { partnerScore, opponentScore, duplicates };
       selectedRound = newRounds[0];
     }
   }

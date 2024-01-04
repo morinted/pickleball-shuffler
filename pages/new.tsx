@@ -5,6 +5,7 @@ import {
   Input,
   Row,
   Spacer,
+  Switch,
   Text,
   Textarea,
 } from "@nextui-org/react";
@@ -27,16 +28,20 @@ function NewGame() {
   const { playersById } = state;
   const dispatch = useShufflerDispatch();
   const worker = useShufflerWorker();
+
+  const [formStatus, setFormStatus] = useState<"edit" | "validating">("edit");
   const [modal, setModal] = useState<"none" | "reset-players">("none");
 
   // Rerendering on text input was very slow due to NextUI textarea element.
   const playersRef = useRef<HTMLTextAreaElement>(null);
 
   const [players, setPlayers] = useState<string[]>(state.players);
-
   const [courts, setCourts] = useState(state.courts.toString());
+  const [customizeCourtNames, setCustomizeCourtNames] = useState(false);
+  const [courtNames, setCourtNames] = useState<string[]>([]);
 
   const handleAddPlayers = () => {
+    if (!playersRef.current?.value) return;
     const names = Array.from(
       new Set(
         (playersRef.current?.value || "")
@@ -50,24 +55,43 @@ function NewGame() {
     playersRef.current?.focus();
   };
 
-  // Load last time's players.
+  // Load last time's players and court names.
   useEffect(() => {
     const playerNames = [...state.players]
       .map((id) => playersById[id].name)
       .sort((a, b) => a.localeCompare(b));
     setPlayers(playerNames);
     setCourts(state.courts.toString());
-  }, [state.players, state.courts]);
+
+    if (state.courtNames.length) {
+      setCustomizeCourtNames(true);
+      setCourtNames(state.courtNames);
+    }
+  }, [state.players, state.courts, state.courtNames]);
 
   const handleNewGame = async () => {
     if (!playersRef.current) return;
     const names = players;
-    if (names.length < 4) return;
+    if (names.length < 4) {
+      setFormStatus("validating");
+      return;
+    }
     const courtCount = parseInt(courts);
-    if (courtCount < 1) return;
+    if (isNaN(courtCount) || courtCount < 1) {
+      setFormStatus("validating");
+      return;
+    }
+    if (
+      customizeCourtNames &&
+      new Set(courtNames.map((x) => x.trim())).size !== courtNames.length
+    ) {
+      setFormStatus("validating");
+      return;
+    }
     await newGame(dispatch, state, worker, {
       names,
       courts: courtCount,
+      courtNames: customizeCourtNames ? courtNames : [],
     });
     router.push("/rounds");
   };
@@ -75,6 +99,14 @@ function NewGame() {
   const handleResetPlayers = () => {
     setModal("reset-players");
   };
+
+  const playerError = formStatus === "validating" && players.length < 4;
+  const courtsError =
+    formStatus === "validating" &&
+    (isNaN(parseInt(courts)) || parseInt(courts) < 1);
+  const courtNamesError =
+    formStatus === "validating" &&
+    new Set(courtNames.map((x) => x.trim())).size !== courtNames.length;
 
   return (
     <>
@@ -104,7 +136,7 @@ function NewGame() {
                 <Text id="players-label">
                   Who's playing?{" "}
                   <Text i color="$gray800">
-                    {players.length && `${players.length} players`}
+                    {players.length ? `${players.length} players` : ""}
                   </Text>
                 </Text>
                 <div style={{ flexGrow: "1" }} />
@@ -128,10 +160,16 @@ function NewGame() {
                   placeholder="Jo Swift, Kathryn Lob"
                   bordered
                   label="Add players"
-                  color="default"
+                  color={playerError ? "error" : "default"}
                   css={{
                     flexGrow: 1,
                   }}
+                  helperColor="error"
+                  helperText={
+                    players.length < 4 && formStatus === "validating"
+                      ? "At least 4 players are required"
+                      : undefined
+                  }
                 />
                 <Spacer x={0.5} />
                 <Button
@@ -195,7 +233,19 @@ function NewGame() {
               <Row align="center">
                 <Court />
                 <Spacer x={0.25} inline />
-                <Text id="courts-label">How many courts are available?</Text>
+                <Text
+                  id="courts-label"
+                  color={courtsError ? "error" : "default"}
+                >
+                  How many courts are available?{" "}
+                  <Text i color="$gray800">
+                    {Math.floor(players.length / 4) ? (
+                      <>Enough players for {Math.floor(players.length / 4)}</>
+                    ) : (
+                      ""
+                    )}
+                  </Text>
+                </Text>
               </Row>
               <Spacer y={0.5} />
               <Input
@@ -204,13 +254,122 @@ function NewGame() {
                 type="number"
                 bordered
                 min={1}
+                helperColor="error"
+                helperText={
+                  courtsError ? "Courts must be 1 or greater." : undefined
+                }
                 value={courts}
                 onChange={(e) => setCourts(e.target.value)}
                 fullWidth
               />
             </label>
             <Spacer y={1} />
-            <Button onPress={() => handleNewGame()}>Let's play!</Button>
+            <label>
+              <Row>
+                <Text>Customize court names</Text>
+                <Spacer x={1} />
+                <Switch
+                  checked={customizeCourtNames}
+                  onChange={(e) => setCustomizeCourtNames(e.target.checked)}
+                />
+              </Row>
+            </label>
+            {customizeCourtNames && (
+              <>
+                <Spacer y={0.5} />
+                <Row>
+                  <Button
+                    type="button"
+                    size="sm"
+                    auto
+                    onClick={() =>
+                      setCourtNames(
+                        Array.from(
+                          new Array(Math.max(parseInt(courts) || 0, 0)),
+                          (_, i) => ((i + 1) * 2).toString()
+                        )
+                      )
+                    }
+                  >
+                    Evens (2, 4, 6…)
+                  </Button>
+                  <Spacer x={0.5} />
+                  <Button
+                    type="button"
+                    size="sm"
+                    auto
+                    onClick={() =>
+                      setCourtNames(
+                        Array.from(
+                          new Array(Math.max(parseInt(courts) || 0, 0)),
+                          (_, i) => ((i + 1) * 2 - 1).toString()
+                        )
+                      )
+                    }
+                  >
+                    Odds (1, 3, 5…)
+                  </Button>
+                  <Spacer x={0.5} />
+                  <Button
+                    type="button"
+                    color="secondary"
+                    size="sm"
+                    auto
+                    onClick={() =>
+                      setCourtNames(
+                        Array.from(
+                          new Array(Math.max(parseInt(courts) || 0, 0)),
+                          (_, i) => (i + 1).toString()
+                        )
+                      )
+                    }
+                  >
+                    Reset
+                  </Button>
+                </Row>
+                <ol>
+                  {Array.from(
+                    new Array(Math.max(parseInt(courts) || 0, 0)),
+                    (_, i) => courtNames[i] || (i + 1).toString()
+                  ).map((courtName, index, allNames) => (
+                    <li>
+                      <Spacer y={1} />
+                      <Input
+                        value={courtName}
+                        onChange={(e) => {
+                          const name = e.target.value;
+                          const newNames = [...courtNames];
+                          newNames[index] = name;
+                          setCourtNames(newNames);
+                        }}
+                        helperColor="error"
+                        helperText={
+                          courtNamesError &&
+                          allNames.some(
+                            (name, j) =>
+                              j < index && name.trim() === courtName.trim()
+                          )
+                            ? "Duplicated court name"
+                            : undefined
+                        }
+                      />
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+            <Spacer y={1} />
+            <Button
+              onPress={() => {
+                if (playersRef.current?.value) {
+                  handleAddPlayers();
+                } else {
+                  handleNewGame();
+                }
+              }}
+            >
+              Let's play!
+            </Button>
           </Col>
         </Row>
       </Container>

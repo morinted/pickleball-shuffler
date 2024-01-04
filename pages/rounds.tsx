@@ -193,7 +193,7 @@ export default function Rounds() {
               >
                 <Card variant="bordered">
                   <Card.Body>
-                    <Text h4>Court {index + 1}</Text>
+                    <Text h4>Court {state.courtNames[index] || index + 1}</Text>
                     <div style={{ textAlign: "center" }}>
                       <TeamBadges team={teamA.map(playerName).sort()} isHome />
                       <Spacer y={1} />

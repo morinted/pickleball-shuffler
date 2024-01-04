@@ -228,7 +228,7 @@ class PairMaker {
   }
 
   get solvedGroups(): string[][] {
-    return this.filled.map((pair) => pair.members);
+    return this.filled.map((pair) => pair.members.sort());
   }
 }
 
