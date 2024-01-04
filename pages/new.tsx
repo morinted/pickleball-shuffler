@@ -210,11 +210,10 @@ function NewGame() {
                     />
                     <Spacer x={0.5} />
                     <Button
-                      auto
-                      flat
+                      variant="flat"
                       color="secondary"
                       aria-label={`Remove player named ${name}`}
-                      icon={<Delete />}
+                      startContent={<Delete />}
                       onPress={() => {
                         // Delete this player
                         setPlayers((players) => [

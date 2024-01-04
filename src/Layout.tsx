@@ -13,6 +13,13 @@ import CircleType from "circletype";
 import { useEffect } from "react";
 import { useLoadState } from "./useShuffler";
 import { useRouter } from "next/router";
+import clsx from "clsx";
+import { Inter as FontSans } from "next/font/google";
+
+const fontSans = FontSans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
 
 const grandstander = Grandstander({ subsets: ["latin"] });
 
@@ -25,8 +32,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   useLoadState();
   return (
-    <main>
-      <Navbar isBordered>
+    <div
+      className={clsx(
+        "relative flex flex-col h-screen min-h-screen bg-background font-sans antialiased",
+        fontSans.variable
+      )}
+    >
+      <Navbar className="bg-background" isBordered>
         <NavbarBrand>
           <Link href="/">
             <div className="flex justify-center items-center">
@@ -69,13 +81,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {router.asPath === "/" && (
             <NavbarItem id="new-game-item">
               <Link href="/new" id="new-game-button">
-                <Button variant="flat">New game</Button>
+                <Button variant="flat" color="primary">
+                  New game
+                </Button>
               </Link>
             </NavbarItem>
           )}
         </NavbarContent>
       </Navbar>
-      {children}
-    </main>
+      <main className="container mx-auto max-w-7xl pt-4 px-6 flex-grow">
+        {children}
+      </main>
+    </div>
   );
 }
