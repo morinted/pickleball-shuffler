@@ -373,11 +373,14 @@ function NewGame() {
             <Spacer y={4} />
             <Button
               onPress={() => {
-                if (playerInput.trim().length) {
-                  handleAddPlayers();
-                } else {
-                  handleNewGame();
-                }
+                // Set timeout to workaround issue where event gets ignored when pressing with keyboard open on Android.
+                setTimeout(() => {
+                  if (playerInput.trim().length) {
+                    handleAddPlayers();
+                  } else {
+                    handleNewGame();
+                  }
+                }, 0);
               }}
               className="bg-gradient-to-l from-blue-600 to-pink-600 text-white"
             >
