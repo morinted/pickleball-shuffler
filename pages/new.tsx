@@ -1,18 +1,15 @@
 import {
   Button,
-  Col,
-  Container,
+  ButtonGroup,
   Input,
-  Row,
   Spacer,
   Switch,
-  Text,
   Textarea,
 } from "@nextui-org/react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { Fragment, useEffect, useRef, useState } from "react";
-import { AddUser, Delete, People, User } from "react-iconly";
+import { AddUser, Delete, People, User, Document } from "react-iconly";
 import { Court } from "../src/Court";
 import {
   newGame,
@@ -32,8 +29,8 @@ function NewGame() {
   const [formStatus, setFormStatus] = useState<"edit" | "validating">("edit");
   const [modal, setModal] = useState<"none" | "reset-players">("none");
 
-  // Rerendering on text input was very slow due to NextUI textarea element.
-  const playersRef = useRef<HTMLTextAreaElement>(null);
+  const [playerInput, setPlayerInput] = useState("");
+  const playerInputRef = useRef<HTMLTextAreaElement>(null);
 
   const [players, setPlayers] = useState<string[]>(state.players);
   const [courts, setCourts] = useState(state.courts.toString());
@@ -41,18 +38,18 @@ function NewGame() {
   const [courtNames, setCourtNames] = useState<string[]>([]);
 
   const handleAddPlayers = () => {
-    if (!playersRef.current?.value) return;
+    if (!playerInput) return;
     const names = Array.from(
       new Set(
-        (playersRef.current?.value || "")
+        (playerInput || "")
           .split(/[\n,]+/)
           .map((x) => x.trim())
           .filter((x) => !!x)
       )
     );
     setPlayers((players) => [...players, ...names]);
-    if (playersRef.current) playersRef.current.value = "";
-    playersRef.current?.focus();
+    setPlayerInput("");
+    playerInputRef.current?.focus();
   };
 
   // Load last time's players and court names.
@@ -70,7 +67,6 @@ function NewGame() {
   }, [state.players, state.courts, state.courtNames]);
 
   const handleNewGame = async () => {
-    if (!playersRef.current) return;
     const names = players;
     if (names.length < 4) {
       setFormStatus("validating");
@@ -83,7 +79,8 @@ function NewGame() {
     }
     if (
       customizeCourtNames &&
-      new Set(courtNames.map((x) => x.trim())).size !== courtNames.length
+      (new Set(courtNames.map((x) => x.trim())).size !== courtNames.length ||
+        courtNames.some((x) => !x.trim()))
     ) {
       setFormStatus("validating");
       return;
@@ -106,7 +103,8 @@ function NewGame() {
     (isNaN(parseInt(courts)) || parseInt(courts) < 1);
   const courtNamesError =
     formStatus === "validating" &&
-    new Set(courtNames.map((x) => x.trim())).size !== courtNames.length;
+    (courtNames.some((x) => !x.trim()) ||
+      new Set(courtNames.map((x) => x.trim())).size !== courtNames.length);
 
   return (
     <>
@@ -116,88 +114,84 @@ function NewGame() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <Container xs>
+      <div className="mx-auto max-w-xl">
         <ResetPlayersModal
           open={modal === "reset-players"}
           onClose={() => setModal("none")}
           onSubmit={() => {
             setPlayers([]);
-            playersRef.current?.focus();
             setModal("none");
           }}
         />
-        <Spacer y={1} />
-        <Row justify="center" align="center">
-          <Col>
+        <div className="flex justify-center items-center">
+          <div className="flex flex-1 flex-col gap-2">
             <label>
-              <Row align="center">
+              <div className="flex items-center gap-2">
                 <People />
-                <Spacer x={0.25} inline />
-                <Text id="players-label">
+                <span id="players-label">
                   Who's playing?{" "}
-                  <Text i color="$gray800">
+                  <span className="italic text-gray-500">
                     {players.length ? `${players.length} players` : ""}
-                  </Text>
-                </Text>
-                <div style={{ flexGrow: "1" }} />
+                  </span>
+                </span>
+                <div className="flex-1" />
                 <Button
-                  size="xs"
+                  size="sm"
                   color="secondary"
-                  flat
+                  variant="flat"
                   onClick={() => handleResetPlayers()}
                 >
                   Reset players
                 </Button>
-              </Row>
-              <Spacer y={0.5} />
-              <Row align="flex-end">
+              </div>
+              <Spacer y={2} />
+              <div className="flex items-end gap-2">
                 <Textarea
+                  className="flex-1"
+                  ref={playerInputRef}
                   autoFocus
-                  ref={playersRef}
+                  value={playerInput}
+                  onChange={(e) => setPlayerInput(e.target.value)}
                   minRows={1}
                   maxRows={10}
                   itemID="player-input-label"
                   placeholder="Jo Swift, Kathryn Lob"
-                  bordered
+                  variant="bordered"
                   label="Add players"
-                  color={playerError ? "error" : "default"}
-                  css={{
-                    flexGrow: 1,
-                  }}
-                  helperColor="error"
-                  helperText={
+                  labelPlacement="outside"
+                  color={playerError ? "danger" : "default"}
+                  isInvalid={players.length < 4 && formStatus === "validating"}
+                  errorMessage={
                     players.length < 4 && formStatus === "validating"
                       ? "At least 4 players are required"
                       : undefined
                   }
                 />
-                <Spacer x={0.5} />
                 <Button
-                  auto
                   color="primary"
                   aria-label="Add players in text box"
-                  icon={<AddUser />}
+                  isIconOnly
                   type="button"
                   onClick={() => handleAddPlayers()}
-                />
-              </Row>
-              <Spacer y={0.5} />
+                >
+                  <AddUser />
+                </Button>
+              </div>
+              <Spacer y={2} />
               {players.map((name, index) => (
                 <Fragment key={index}>
-                  <Row align="center">
+                  <div className="flex items-center gap-1">
                     <User primaryColor="#888" size="medium" />
-                    <Text size="$sm" color="#555" style={{ width: "1rem" }}>
+                    <span className="text-sm text-gray-500 w-4">
                       {index + 1}
-                    </Text>
-                    <Spacer x={0.25} />
+                    </span>
                     <Input
+                      className="flex-1"
                       aria-label="Player"
-                      css={{
-                        flexGrow: 1,
-                      }}
                       value={name}
+                      size="sm"
                       type="text"
-                      underlined
+                      variant="underlined"
                       onChange={(e) => {
                         const newName = e.currentTarget.value;
                         setPlayers([
@@ -208,13 +202,11 @@ function NewGame() {
                       }}
                       fullWidth
                     />
-                    <Spacer x={0.5} />
                     <Button
-                      auto
-                      flat
-                      color="secondary"
+                      variant="flat"
+                      color="default"
                       aria-label={`Remove player named ${name}`}
-                      icon={<Delete />}
+                      isIconOnly
                       onPress={() => {
                         // Delete this player
                         setPlayers((players) => [
@@ -222,40 +214,40 @@ function NewGame() {
                           ...players.slice(index + 1),
                         ]);
                       }}
-                    />
-                  </Row>
-                  <Spacer y={0.1} />
+                    >
+                      <Delete />
+                    </Button>
+                  </div>
                 </Fragment>
               ))}
             </label>
-            <Spacer y={1} />
+            <Spacer y={3} />
             <label>
-              <Row align="center">
+              <div className="flex items-center gap-2">
                 <Court />
-                <Spacer x={0.25} inline />
-                <Text
+                <p
                   id="courts-label"
-                  color={courtsError ? "error" : "default"}
+                  className={courtsError ? "text-danger" : ""}
                 >
                   How many courts are available?{" "}
-                  <Text i color="$gray800">
+                  <span className="italic text-gray-500">
                     {Math.floor(players.length / 4) ? (
                       <>Enough players for {Math.floor(players.length / 4)}</>
                     ) : (
                       ""
                     )}
-                  </Text>
-                </Text>
-              </Row>
-              <Spacer y={0.5} />
+                  </span>
+                </p>
+              </div>
+              <Spacer y={2} />
               <Input
                 id="court-input"
                 aria-labelledby="courts-label"
                 type="number"
-                bordered
+                variant="bordered"
                 min={1}
-                helperColor="error"
-                helperText={
+                isInvalid={courtsError}
+                errorMessage={
                   courtsError ? "Courts must be 1 or greater." : undefined
                 }
                 value={courts}
@@ -263,119 +255,143 @@ function NewGame() {
                 fullWidth
               />
             </label>
-            <Spacer y={1} />
+            <Spacer y={3} />
             <label>
-              <Row>
-                <Text>Customize court names</Text>
-                <Spacer x={1} />
+              <div className="flex gap-2">
+                <Document />
+                <p>Customize court names</p>
+                <Spacer className="flex-1" />
                 <Switch
-                  checked={customizeCourtNames}
-                  onChange={(e) => setCustomizeCourtNames(e.target.checked)}
+                  isSelected={customizeCourtNames}
+                  onChange={(e) => {
+                    setCourtNames(
+                      Array.from(
+                        new Array(parseInt(courts) || 1),
+                        (_, i) => `${i + 1}`
+                      )
+                    );
+                    setCustomizeCourtNames(e.target.checked);
+                  }}
                 />
-              </Row>
+              </div>
             </label>
             {customizeCourtNames && (
               <>
-                <Spacer y={0.5} />
-                <Row>
-                  <Button
-                    type="button"
-                    size="sm"
-                    auto
-                    onClick={() =>
-                      setCourtNames(
-                        Array.from(
-                          new Array(Math.max(parseInt(courts) || 0, 0)),
-                          (_, i) => ((i + 1) * 2).toString()
+                <div className="flex gap-2 items-center">
+                  <p className="text-primary font-semibold">Quick set</p>
+                  <ButtonGroup>
+                    <Button
+                      type="button"
+                      size="sm"
+                      color="secondary"
+                      variant="flat"
+                      onClick={() =>
+                        setCourtNames(
+                          Array.from(
+                            new Array(Math.max(parseInt(courts) || 0, 0)),
+                            (_, i) => (i + 1).toString()
+                          )
                         )
-                      )
-                    }
-                  >
-                    Evens (2, 4, 6…)
-                  </Button>
-                  <Spacer x={0.5} />
-                  <Button
-                    type="button"
-                    size="sm"
-                    auto
-                    onClick={() =>
-                      setCourtNames(
-                        Array.from(
-                          new Array(Math.max(parseInt(courts) || 0, 0)),
-                          (_, i) => ((i + 1) * 2 - 1).toString()
+                      }
+                    >
+                      1, 2, 3, 4…
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      color="primary"
+                      variant="flat"
+                      onClick={() =>
+                        setCourtNames(
+                          Array.from(
+                            new Array(Math.max(parseInt(courts) || 0, 0)),
+                            (_, i) => ((i + 1) * 2).toString()
+                          )
                         )
-                      )
-                    }
-                  >
-                    Odds (1, 3, 5…)
-                  </Button>
-                  <Spacer x={0.5} />
-                  <Button
-                    type="button"
-                    color="secondary"
-                    size="sm"
-                    auto
-                    onClick={() =>
-                      setCourtNames(
-                        Array.from(
-                          new Array(Math.max(parseInt(courts) || 0, 0)),
-                          (_, i) => (i + 1).toString()
+                      }
+                    >
+                      2, 4, 6, 8…
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      color="secondary"
+                      variant="flat"
+                      onClick={() =>
+                        setCourtNames(
+                          Array.from(
+                            new Array(Math.max(parseInt(courts) || 0, 0)),
+                            (_, i) => ((i + 1) * 2 - 1).toString()
+                          )
                         )
-                      )
-                    }
-                  >
-                    Reset
-                  </Button>
-                </Row>
-                <ol>
+                      }
+                    >
+                      1, 3, 5, 7…
+                    </Button>
+                  </ButtonGroup>
+                </div>
+                {/* list-inside was causing wrapping with input, hack using ml. */}
+                <ol className="list-disc ml-5">
                   {Array.from(
                     new Array(Math.max(parseInt(courts) || 0, 0)),
-                    (_, i) => courtNames[i] || (i + 1).toString()
-                  ).map((courtName, index, allNames) => (
-                    <li>
-                      <Spacer y={1} />
-                      <Input
-                        value={courtName}
-                        onChange={(e) => {
-                          const name = e.target.value;
-                          const newNames = [...courtNames];
-                          newNames[index] = name;
-                          setCourtNames(newNames);
-                        }}
-                        helperColor="error"
-                        helperText={
-                          courtNamesError &&
-                          allNames.some(
-                            (name, j) =>
-                              j < index && name.trim() === courtName.trim()
-                          )
-                            ? "Duplicated court name"
-                            : undefined
-                        }
-                      />
-                    </li>
-                  ))}
+                    (_, i) => courtNames[i] || ""
+                  ).map((courtName, index, allNames) => {
+                    const duplicationError =
+                      courtNamesError &&
+                      allNames.some(
+                        (name, j) =>
+                          j < index && name.trim() === courtName.trim()
+                      );
+                    const emptyCourtName = courtNamesError && !courtName.trim();
+                    return (
+                      <li key={index} className="mt-2">
+                        <Input
+                          value={courtName}
+                          label="Court"
+                          labelPlacement="outside-left"
+                          onChange={(e) => {
+                            const name = e.target.value;
+                            const newNames = [...courtNames];
+                            newNames[index] = name;
+                            setCourtNames(newNames);
+                          }}
+                          isInvalid={duplicationError || emptyCourtName}
+                          errorMessage={
+                            emptyCourtName
+                              ? "Please provide a court name"
+                              : duplicationError
+                              ? "Duplicated court name"
+                              : undefined
+                          }
+                        />
+                      </li>
+                    );
+                  })}
                 </ol>
               </>
             )}
-            <Spacer y={1} />
+            <Spacer y={4} />
             <Button
               onPress={() => {
-                if (playersRef.current?.value) {
-                  handleAddPlayers();
-                } else {
-                  handleNewGame();
-                }
+                // Set timeout to workaround issue where event gets ignored when pressing with keyboard open on Android.
+                setTimeout(() => {
+                  if (playerInput.trim().length) {
+                    handleAddPlayers();
+                  } else {
+                    handleNewGame();
+                  }
+                }, 0);
               }}
+              className="bg-gradient-to-l from-blue-600 to-pink-600 text-white"
             >
               Let's play!
             </Button>
-          </Col>
-        </Row>
-      </Container>
+            <Spacer y={8} />
+          </div>
+        </div>
+      </div>
     </>
   );
 }
 
-//
 export default NewGame;

@@ -1,12 +1,10 @@
 import {
   Button,
   Card,
-  Container,
-  Row,
   Spacer,
-  Text,
   Pagination,
-  Grid,
+  CardBody,
+  Divider,
 } from "@nextui-org/react";
 import Head from "next/head";
 import React, { useEffect, useState } from "react";
@@ -64,7 +62,7 @@ export default function Rounds() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <Container>
+      <section className="container mx-auto">
         <SitoutsModal
           open={sitoutModal}
           onClose={() => setSitoutModal(false)}
@@ -101,36 +99,26 @@ export default function Rounds() {
           }}
         />
         <Spacer y={1} />
-        <Row
-          align="center"
-          css={{
-            gap: "0.5rem",
-          }}
-        >
-          <Text
-            css={{
-              flexGrow: 1,
-            }}
-            h3
-          >
+        <div className="flex flex-row mb-4 gap-2">
+          <h3 className="flex-grow text-xl font-semibold">
             Round {roundIndex + 1}
-          </Text>
+          </h3>
           {roundIndex === state.rounds.length - 1 ? (
             <>
               <Button
                 aria-label={`${state.players.length} players`}
-                auto
-                icon={<People />}
-                css={{ marginTop: "-0.75rem" }}
+                startContent={<People />}
+                className="-mt-2"
+                color="primary"
                 onPress={() => setPlayersModal(true)}
               >
                 {state.players.length}
               </Button>
               <Button
                 aria-label={`${state.players.length} players`}
-                auto
-                icon={<Court />}
-                css={{ marginTop: "-0.75rem" }}
+                startContent={<Court />}
+                className="-mt-2"
+                color="primary"
                 onPress={() => setCourtsModal(true)}
               >
                 {state.courts}
@@ -139,30 +127,32 @@ export default function Rounds() {
           ) : (
             <Button
               onPress={() => setRoundIndex(state.rounds.length - 1)}
-              flat
-              css={{ marginTop: "-0.75rem" }}
+              variant="flat"
+              color="primary"
+              className="-mt-2"
             >
               Jump to latest round
             </Button>
           )}
-        </Row>
-        <Grid.Container gap={2} justify="center">
-          <Grid xs={12} sm={4} md={3} xl={2}>
-            <Card variant="flat">
-              <Card.Body>
-                <Row justify="space-between" align="center">
-                  <Text h4>Sitting out</Text>
+        </div>
+
+        <div className="flex gap-4 items-stretch justify-center flex-wrap">
+          {/* Sitting out */}{" "}
+          <div className="basis-full sm:basis-64 md:basis-64 xl:basis-64">
+            <Card className="h-full bg-slate-200">
+              <CardBody>
+                <div className="flex justify-between content-center">
+                  <h4 className="text-lg font-semibold mb-4">Sitting out</h4>
                   <Button
-                    auto
-                    css={{
-                      marginTop: "-1rem",
-                    }}
-                    flat
+                    className="-mt-1"
+                    variant="flat"
                     color="primary"
                     onPress={() => setSitoutModal(true)}
-                    icon={<Edit label="Edit sit outs" />}
-                  />
-                </Row>
+                    isIconOnly
+                  >
+                    <Edit label="Edit sit outs" />
+                  </Button>
+                </div>
                 {sitOuts.length ? (
                   <>
                     <Spacer y={0.5} />
@@ -170,47 +160,52 @@ export default function Rounds() {
                       {sitOuts.map((playerId) => (
                         <PlayerBadge key={playerId} color="default">
                           {playerName(playerId)}
-                          {volunteers.includes(playerId) ? " (volunteer)" : ""}
+                          {volunteers.includes(playerId) ? (
+                            <span className="text-neutral-500 font-semibold text-medium">
+                              {" "}
+                              (volunteer)
+                            </span>
+                          ) : (
+                            ""
+                          )}
                         </PlayerBadge>
                       ))}
                     </BadgeGroup>
                   </>
                 ) : (
-                  <Text i>No one has to sit out.</Text>
+                  <p className="italic">No one has to sit out.</p>
                 )}
-              </Card.Body>
+              </CardBody>
             </Card>
-          </Grid>
-
+          </div>
+          {/* Games */}
           {matches.map(([teamA, teamB], index) => {
             return (
-              <Grid
+              <div
                 key={JSON.stringify([teamA, teamB])}
-                xs={12}
-                sm={6}
-                md={4}
-                xl={3}
+                className="basis-full sm:basis-1/2 md:basis-96 xl:basis-[26rem]"
               >
-                <Card variant="bordered">
-                  <Card.Body>
-                    <Text h4>Court {state.courtNames[index] || index + 1}</Text>
-                    <div style={{ textAlign: "center" }}>
+                <Card>
+                  <CardBody>
+                    <h4 className="text-lg font-semibold mb-2">
+                      Court {state.courtNames[index] || index + 1}
+                    </h4>
+                    <div className="text-center">
                       <TeamBadges team={teamA.map(playerName).sort()} isHome />
-                      <Spacer y={1} />
-                      <Card.Divider>
-                        <Text b>vs</Text>
-                      </Card.Divider>
-                      <Spacer y={1} />
+                      <Spacer y={5} />
+                      <div className="relative w-full border-b-1 before:px-4 before:-mx-6 before:bg-white before:-translate-y-1/2 before:font-bold before:absolute before:content-['vs']"></div>
+                      <Spacer y={5} />
                       <TeamBadges team={teamB.map(playerName).sort()} />
+                      <Spacer y={1} />
                     </div>
-                  </Card.Body>
+                  </CardBody>
                 </Card>
-              </Grid>
+              </div>
             );
           })}
-        </Grid.Container>
+        </div>
         <Spacer y={1} />
-        <Row justify="space-around">
+        <div className="flex justify-around my-6">
           <Pagination
             total={state.rounds.length + (state.generating ? 1 : 0) || 1}
             page={roundIndex + 1}
@@ -218,9 +213,9 @@ export default function Rounds() {
               setRoundIndex(page - 1);
             }}
           />
-        </Row>
+        </div>
         <Spacer y={1.5} />
-        <Row justify="space-around">
+        <div className="flex justify-around">
           <Button
             size="lg"
             onPress={async () => {
@@ -230,13 +225,13 @@ export default function Rounds() {
               setRoundIndex(state.rounds.length);
               window.scrollTo(0, 0);
             }}
-            color="gradient"
+            className="bg-gradient-to-l from-blue-600 to-pink-600 text-white"
           >
             Start round {state.rounds.length + 1}!
           </Button>
-        </Row>
+        </div>
         <Spacer y={2} />
-      </Container>
+      </section>
     </>
   );
 }

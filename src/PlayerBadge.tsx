@@ -1,5 +1,5 @@
-import { Badge } from "@nextui-org/react";
 import React from "react";
+import clsx from "clsx";
 
 export function PlayerBadge({
   color,
@@ -9,8 +9,18 @@ export function PlayerBadge({
   color: "primary" | "secondary" | "default";
 }) {
   return (
-    <Badge isSquared variant="bordered" color={color} size="lg">
+    <p
+      className={clsx(
+        "border-2 font-semibold text-lg sm:text-medium",
+        `text-${color} border-${color} rounded-lg px-2 py-1`,
+        {
+          "bg-slate-100": color === "default",
+          "border-slate-400": color === "default",
+          "text-slate-800": color === "default",
+        }
+      )}
+    >
       {children}
-    </Badge>
+    </p>
   );
 }

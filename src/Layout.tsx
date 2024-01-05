@@ -1,11 +1,25 @@
-import { Badge, Button, Navbar, Row } from "@nextui-org/react";
+import {
+  Badge,
+  Button,
+  Navbar,
+  NavbarBrand,
+  NavbarContent,
+  NavbarItem,
+} from "@nextui-org/react";
 import Link from "next/link";
-import { Grandstander } from "@next/font/google";
+import { Grandstander } from "next/font/google";
 // @ts-expect-error
 import CircleType from "circletype";
 import { useEffect } from "react";
 import { useLoadState } from "./useShuffler";
 import { useRouter } from "next/router";
+import clsx from "clsx";
+import { Inter as FontSans } from "next/font/google";
+
+const fontSans = FontSans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
 
 const grandstander = Grandstander({ subsets: ["latin"] });
 
@@ -18,11 +32,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   useLoadState();
   return (
-    <main>
-      <Navbar>
-        <Navbar.Brand>
+    <div
+      className={clsx(
+        "relative flex flex-col h-screen min-h-screen bg-background font-sans antialiased",
+        fontSans.variable
+      )}
+    >
+      <Navbar className="bg-background" isBordered>
+        <NavbarBrand>
           <Link href="/">
-            <Row align="center" justify="center">
+            <div className="flex justify-center items-center">
               <div
                 className={grandstander.className}
                 style={{
@@ -33,6 +52,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   marginTop: "0.5rem",
                   color: "black",
                   fontWeight: 600,
+                  letterSpacing: "0.05rem",
                 }}
               >
                 <div
@@ -40,6 +60,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     fontSize: "1.1em",
                     height: "0.2em",
                     marginLeft: "-0.2rem",
+                    fontWeight: 600,
+                    letterSpacing: "0.15rem",
                   }}
                   id="jumbled"
                 >
@@ -48,34 +70,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <br />
                 Doubles
               </div>
-              <Badge
-                isSquared
-                variant="bordered"
-                size="sm"
-                color="secondary"
-                style={{
-                  marginLeft: "1.5rem",
-                }}
-              >
+              <div className="text-secondary px-1 ml-3 h-min text-xs font-bold border-secondary border-2 rounded">
                 Beta
-              </Badge>
-            </Row>
+              </div>
+            </div>
           </Link>
-        </Navbar.Brand>
+        </NavbarBrand>
 
-        <Navbar.Content>
+        <NavbarContent justify="end">
           {router.asPath === "/" && (
-            <Navbar.Item id="new-game-item">
+            <NavbarItem id="new-game-item">
               <Link href="/new" id="new-game-button">
-                <Button auto flat>
+                <Button variant="flat" color="primary">
                   New game
                 </Button>
               </Link>
-            </Navbar.Item>
+            </NavbarItem>
           )}
-        </Navbar.Content>
+        </NavbarContent>
       </Navbar>
-      {children}
-    </main>
+      <main className="container mx-auto max-w-7xl pt-4 px-6 flex-grow">
+        {children}
+      </main>
+    </div>
   );
 }

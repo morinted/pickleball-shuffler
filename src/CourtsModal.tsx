@@ -1,11 +1,12 @@
 import {
   Button,
-  Checkbox,
   Input,
   Modal,
-  Row,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
   Spacer,
-  Text,
 } from "@nextui-org/react";
 import { useEffect, useState } from "react";
 import { Home } from "react-iconly";
@@ -31,59 +32,53 @@ export function CourtsModal({
 
   return (
     <Modal
-      scroll
       closeButton
       aria-labelledby="courts-modal-title"
-      open={open}
+      isOpen={open}
       onClose={() => {
         onClose();
       }}
     >
-      <Modal.Header>
-        <Text id="courts-modal-title" h3>
-          Edit courts
-        </Text>
-      </Modal.Header>
-      <Modal.Body>
-        <label>
-          <Row align="center">
-            <Court />
-            <Spacer x={0.25} inline />
-            <Text id="courts-label" size="$lg">
-              How many courts are available now?
-            </Text>
-          </Row>
-          <Spacer y={0.5} />
-          <Input
-            id="court-input"
-            aria-labelledby="courts-label"
-            type="number"
-            min={1}
-            value={courts}
-            onChange={(e) => setCourts(e.target.value)}
-            fullWidth
-          />
-        </label>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button auto flat onPress={onClose}>
-          Close
-        </Button>
-        <Button
-          auto
-          onPress={() => onSubmit(parseInt(courts), true)}
-          color="error"
-        >
-          Redo round
-        </Button>
-        <Button
-          auto
-          onPress={() => onSubmit(parseInt(courts), false)}
-          color="gradient"
-        >
-          New round
-        </Button>
-      </Modal.Footer>
+      <ModalContent>
+        <ModalHeader>
+          <h3 id="courts-modal-title">Edit courts</h3>
+        </ModalHeader>
+        <ModalBody>
+          <label>
+            <div className="flex items-center gap-2">
+              <Court />
+              <p id="courts-label">How many courts are available now?</p>
+            </div>
+            <Spacer y={3} />
+            <Input
+              id="court-input"
+              aria-labelledby="courts-label"
+              type="number"
+              min={1}
+              value={courts}
+              onChange={(e) => setCourts(e.target.value)}
+              fullWidth
+            />
+          </label>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="flat" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onPress={() => onSubmit(parseInt(courts), true)}
+            color="danger"
+          >
+            Redo round
+          </Button>
+          <Button
+            onPress={() => onSubmit(parseInt(courts), false)}
+            color="primary"
+          >
+            New round
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Modal>
   );
 }
