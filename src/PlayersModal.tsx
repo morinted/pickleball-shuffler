@@ -1,19 +1,19 @@
 import {
   Button,
-  Checkbox,
-  Col,
-  Divider,
   Input,
   Modal,
-  Row,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
   Spacer,
-  Text,
 } from "@nextui-org/react";
 import { v4 as uuidv4 } from "uuid";
 import { useEffect, useRef, useState } from "react";
 import { AddUser, Delete } from "react-iconly";
 import { Player } from "./matching/heuristics";
 import { useShufflerState } from "./useShuffler";
+import clsx from "clsx";
 
 export function PlayersModal({
   open,
@@ -25,7 +25,7 @@ export function PlayersModal({
   onSubmit: (newPlayers: Player[], regenerate: boolean) => void;
 }) {
   const state = useShufflerState();
-  const newPlayerRef = useRef<HTMLTextAreaElement>(null);
+  const newPlayerRef = useRef<HTMLInputElement>(null);
   const [players, setPlayers] = useState<
     Array<Player & { delete: boolean; new: boolean }>
   >([]);
@@ -59,111 +59,119 @@ export function PlayersModal({
 
   return (
     <Modal
-      scroll
       closeButton
       aria-labelledby="players-modal-title"
-      open={open}
+      isOpen={open}
+      scrollBehavior="inside"
       onClose={() => {
         onClose();
       }}
     >
-      <Modal.Header>
-        <Text id="players-modal-title" h3>
-          Edit players
-        </Text>
-      </Modal.Header>
-      <Modal.Body>
-        <Text size="$lg">
-          Add or remove players. You can either{" "}
-          <Text b>redo the current round</Text> (because you haven't played yet)
-          or <Text b>start a new round</Text> with the updated roster.
-        </Text>
-        <form
-          name="new-player"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!newPlayerRef.current) return;
-            const playerName = newPlayerRef.current?.value?.trim();
-            // No empty input.
-            if (!playerName) return;
-            // No duplicate names.
-            if (players.some((player) => player.name === playerName)) return;
-            // Update list and clear form.
-            setPlayers((players) => [
-              { name: playerName, id: uuidv4(), delete: false, new: true },
-              ...players,
-            ]);
-            newPlayerRef.current.value = "";
-          }}
-        >
-          <Row align="flex-end">
-            <Input
-              bordered
-              label="Add player"
-              color="primary"
-              css={{
-                flexGrow: 1,
-              }}
-              ref={newPlayerRef}
-            />
-            <Spacer x={0.5} />
-            <Button
-              auto
-              color="primary"
-              aria-label="Submit add player"
-              icon={<AddUser />}
-              type="submit"
-            />
-          </Row>
-        </form>
-        {players.map((player) => (
-          <Row key={player.id}>
-            <Text
-              size="$lg"
-              css={{
-                textDecoration: player.delete ? "line-through" : "",
-                color: player.delete ? "$neutral" : undefined,
-                flexGrow: 1,
-              }}
-            >
-              {player.new ? "🆕 " : ""}
-              {player.name}
-            </Text>
-            <Spacer x={0.5} />
-            <Button
-              auto
-              flat
-              color={player.delete ? "success" : "error"}
-              aria-label={`Remove player named ${player.name}`}
-              icon={player.delete ? <AddUser /> : <Delete />}
-              onPress={() => {
-                // Toggle delete for this player
-                setPlayers((players) =>
-                  players.map((x) =>
-                    x.id === player.id
-                      ? {
-                          ...x,
-                          delete: !x.delete,
-                        }
-                      : x
-                  )
-                );
-              }}
-            />
-          </Row>
-        ))}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button auto flat onPress={onClose}>
-          Close
-        </Button>
-        <Button auto onPress={handleSubmit(true)} color="error">
-          Redo round
-        </Button>
-        <Button auto onPress={handleSubmit()} color="gradient">
-          New round
-        </Button>
-      </Modal.Footer>
+      <ModalContent>
+        <ModalHeader>
+          <h3 id="players-modal-title">Edit players</h3>
+        </ModalHeader>
+        <ModalBody>
+          <p className="text-lg">
+            Add or remove players. You can either{" "}
+            <span className="font-bold">redo the current round</span> (because
+            you haven't played yet) or{" "}
+            <span className="font-bold">start a new round</span> with the
+            updated roster.
+          </p>
+          <form
+            name="new-player"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!newPlayerRef.current) return;
+              const playerName = newPlayerRef.current?.value?.trim();
+              // No empty input.
+              if (!playerName) return;
+              // No duplicate names.
+              if (players.some((player) => player.name === playerName)) return;
+              // Update list and clear form.
+              setPlayers((players) => [
+                { name: playerName, id: uuidv4(), delete: false, new: true },
+                ...players,
+              ]);
+              newPlayerRef.current.value = "";
+            }}
+          >
+            <div className="flex gap-2 items-end">
+              <Input
+                variant="bordered"
+                label="Add player"
+                labelPlacement="outside"
+                placeholder="Enter player name"
+                color="primary"
+                className="flex-1"
+                ref={newPlayerRef}
+              />
+              <Button
+                color="primary"
+                aria-label="Submit add player"
+                isIconOnly
+                type="submit"
+              >
+                <AddUser />
+              </Button>
+            </div>
+          </form>
+          {players.map((player) => (
+            <div className="flex items-center border-b-1 pb-3" key={player.id}>
+              <span
+                className={clsx("text-large flex-1", {
+                  "line-through": player.delete,
+                  "text-neutral-400": player.delete,
+                })}
+              >
+                {player.new ? "🆕 " : ""}
+                {player.delete ? "❌ " : ""}
+                {player.name}
+              </span>
+              <Spacer x={0.5} />
+              <Button
+                variant="flat"
+                size="sm"
+                color={player.delete ? "success" : "default"}
+                aria-label={
+                  player.delete
+                    ? `Restore player named ${player.name}`
+                    : `Remove player named ${player.name}`
+                }
+                endContent={player.delete ? <AddUser /> : <Delete />}
+                title={player.delete ? "Restore player" : "Remove player"}
+                onPress={() => {
+                  // Toggle delete for this player
+                  setPlayers((players) =>
+                    players.map((x) =>
+                      x.id === player.id
+                        ? {
+                            ...x,
+                            delete: !x.delete,
+                          }
+                        : x
+                    )
+                  );
+                }}
+              >
+                {player.delete ? "Re-add" : "Remove"}
+              </Button>
+            </div>
+          ))}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="flat" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button onPress={handleSubmit(true)} color="danger">
+            Redo round
+          </Button>
+          <Button onPress={handleSubmit()} color="primary">
+            New round
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Modal>
   );
 }

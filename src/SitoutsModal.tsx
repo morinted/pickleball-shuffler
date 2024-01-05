@@ -1,4 +1,13 @@
-import { Button, Checkbox, Modal, Text } from "@nextui-org/react";
+import {
+  Button,
+  Checkbox,
+  CheckboxGroup,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+} from "@nextui-org/react";
 import { useState } from "react";
 import { PlayerId } from "./matching/heuristics";
 import { useShufflerState } from "./useShuffler";
@@ -17,44 +26,45 @@ export function SitoutsModal({
 
   return (
     <Modal
-      scroll
+      scrollBehavior="inside"
       closeButton
       aria-labelledby="sitout-modal-title"
-      open={open}
+      isOpen={open}
       onClose={() => {
         setVolunteers([]);
         onClose();
       }}
     >
-      <Modal.Header>
-        <Text id="sitout-modal-title" h3>
-          Edit sit outs
-        </Text>
-      </Modal.Header>
-      <Modal.Body>
-        <Text size="$lg">
-          Someone wants to sit out? Select who and reshuffle the current round.
-        </Text>
-        <Checkbox.Group
-          label="Volunteers to sit out"
-          value={volunteers}
-          onChange={setVolunteers}
-        >
-          {state.players.map((player) => (
-            <Checkbox value={player} key={player}>
-              {state.playersById[player].name}
-            </Checkbox>
-          ))}
-        </Checkbox.Group>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button auto flat onPress={onClose}>
-          Close
-        </Button>
-        <Button auto onPress={() => onSubmit(volunteers)} color="gradient">
-          Re-jumble!
-        </Button>
-      </Modal.Footer>
+      <ModalContent>
+        <ModalHeader>
+          <h3 id="sitout-modal-title">Edit sit outs</h3>
+        </ModalHeader>
+        <ModalBody>
+          <p className="text-lg">
+            Someone wants to sit out? Select who and reshuffle the current
+            round.
+          </p>
+          <CheckboxGroup
+            label="Volunteers to sit out"
+            value={volunteers}
+            onValueChange={setVolunteers}
+          >
+            {state.players.map((player) => (
+              <Checkbox value={player} key={player}>
+                {state.playersById[player].name}
+              </Checkbox>
+            ))}
+          </CheckboxGroup>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="flat" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button onPress={() => onSubmit(volunteers)} color="primary">
+            Re-jumble!
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Modal>
   );
 }

@@ -3,6 +3,7 @@ import {
   Input,
   Modal,
   ModalBody,
+  ModalContent,
   ModalFooter,
   ModalHeader,
   Spacer,
@@ -38,41 +39,46 @@ export function CourtsModal({
         onClose();
       }}
     >
-      <ModalHeader>
-        <h3 id="courts-modal-title">Edit courts</h3>
-      </ModalHeader>
-      <ModalBody>
-        <label>
-          <div className="flex items-center">
-            <Court />
-            <p id="courts-label">How many courts are available now?</p>
-          </div>
-          <Spacer y={1} />
-          <Input
-            id="court-input"
-            aria-labelledby="courts-label"
-            type="number"
-            min={1}
-            value={courts}
-            onChange={(e) => setCourts(e.target.value)}
-            fullWidth
-          />
-        </label>
-      </ModalBody>
-      <ModalFooter>
-        <Button variant="flat" onPress={onClose}>
-          Close
-        </Button>
-        <Button onPress={() => onSubmit(parseInt(courts), true)} color="danger">
-          Redo round
-        </Button>
-        <Button
-          onPress={() => onSubmit(parseInt(courts), false)}
-          className="bg-gradient-to-l from-blue-600 to-pink-600 text-white"
-        >
-          New round
-        </Button>
-      </ModalFooter>
+      <ModalContent>
+        <ModalHeader>
+          <h3 id="courts-modal-title">Edit courts</h3>
+        </ModalHeader>
+        <ModalBody>
+          <label>
+            <div className="flex items-center gap-2">
+              <Court />
+              <p id="courts-label">How many courts are available now?</p>
+            </div>
+            <Spacer y={3} />
+            <Input
+              id="court-input"
+              aria-labelledby="courts-label"
+              type="number"
+              min={1}
+              value={courts}
+              onChange={(e) => setCourts(e.target.value)}
+              fullWidth
+            />
+          </label>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="flat" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onPress={() => onSubmit(parseInt(courts), true)}
+            color="danger"
+          >
+            Redo round
+          </Button>
+          <Button
+            onPress={() => onSubmit(parseInt(courts), false)}
+            color="primary"
+          >
+            New round
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Modal>
   );
 }

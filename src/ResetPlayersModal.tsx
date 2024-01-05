@@ -1,4 +1,11 @@
-import { Button, Modal, Text } from "@nextui-org/react";
+import {
+  Button,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+} from "@nextui-org/react";
 
 export function ResetPlayersModal({
   open,
@@ -13,31 +20,27 @@ export function ResetPlayersModal({
     <Modal
       closeButton
       aria-labelledby="reset-players-message"
-      open={open}
+      isOpen={open}
       onClose={() => {
         onClose();
       }}
     >
-      <Modal.Header>
-        <Text id="reset-players-message" h3>
-          Clear all players?
-        </Text>
-      </Modal.Header>
-      <Modal.Body>
-        <label>
-          <Text id="courts-label" size="$lg">
-            Clear players and start over?
-          </Text>
-        </label>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button auto flat onPress={onClose}>
-          Close
-        </Button>
-        <Button auto onPress={() => onSubmit()} color="error">
-          Clear all
-        </Button>
-      </Modal.Footer>
+      <ModalContent>
+        <ModalHeader>
+          <h3 id="reset-players-message">Clear all players?</h3>
+        </ModalHeader>
+        <ModalBody>
+          <label id="courts-label">Remove all players and start over?</label>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="flat" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button variant="flat" onPress={() => onSubmit()} color="danger">
+            Clear all
+          </Button>
+        </ModalFooter>
+      </ModalContent>
     </Modal>
   );
 }

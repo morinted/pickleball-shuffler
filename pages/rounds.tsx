@@ -128,6 +128,7 @@ export default function Rounds() {
             <Button
               onPress={() => setRoundIndex(state.rounds.length - 1)}
               variant="flat"
+              color="primary"
               className="-mt-2"
             >
               Jump to latest round
@@ -159,7 +160,14 @@ export default function Rounds() {
                       {sitOuts.map((playerId) => (
                         <PlayerBadge key={playerId} color="default">
                           {playerName(playerId)}
-                          {volunteers.includes(playerId) ? " (volunteer)" : ""}
+                          {volunteers.includes(playerId) ? (
+                            <span className="text-neutral-500 font-semibold text-medium">
+                              {" "}
+                              (volunteer)
+                            </span>
+                          ) : (
+                            ""
+                          )}
                         </PlayerBadge>
                       ))}
                     </BadgeGroup>
