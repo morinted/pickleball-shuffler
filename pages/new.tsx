@@ -72,7 +72,8 @@ function NewGame() {
     }
     if (
       customizeCourtNames &&
-      new Set(courtNames.map((x) => x.trim())).size !== courtNames.length
+      (new Set(courtNames.map((x) => x.trim())).size !== courtNames.length ||
+        courtNames.some((x) => !x.trim()))
     ) {
       setFormStatus("validating");
       return;
@@ -95,7 +96,8 @@ function NewGame() {
     (isNaN(parseInt(courts)) || parseInt(courts) < 1);
   const courtNamesError =
     formStatus === "validating" &&
-    new Set(courtNames.map((x) => x.trim())).size !== courtNames.length;
+    (courtNames.some((x) => !x.trim()) ||
+      new Set(courtNames.map((x) => x.trim())).size !== courtNames.length);
 
   return (
     <>
@@ -254,45 +256,27 @@ function NewGame() {
                 <Spacer className="flex-1" />
                 <Switch
                   isSelected={customizeCourtNames}
-                  onChange={(e) => setCustomizeCourtNames(e.target.checked)}
+                  onChange={(e) => {
+                    setCourtNames(
+                      Array.from(
+                        new Array(parseInt(courts) || 1),
+                        (_, i) => `${i + 1}`
+                      )
+                    );
+                    setCustomizeCourtNames(e.target.checked);
+                  }}
                 />
               </div>
             </label>
             {customizeCourtNames && (
               <>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                  <p className="text-primary font-semibold">Quick set:</p>
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() =>
-                      setCourtNames(
-                        Array.from(
-                          new Array(Math.max(parseInt(courts) || 0, 0)),
-                          (_, i) => ((i + 1) * 2).toString()
-                        )
-                      )
-                    }
-                  >
-                    Evens (2, 4, 6…)
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() =>
-                      setCourtNames(
-                        Array.from(
-                          new Array(Math.max(parseInt(courts) || 0, 0)),
-                          (_, i) => ((i + 1) * 2 - 1).toString()
-                        )
-                      )
-                    }
-                  >
-                    Odds (1, 3, 5…)
-                  </Button>
-                  <Button
-                    type="button"
                     color="secondary"
-                    size="sm"
+                    variant="flat"
                     onClick={() =>
                       setCourtNames(
                         Array.from(
@@ -302,14 +286,46 @@ function NewGame() {
                       )
                     }
                   >
-                    Reset
+                    1, 2, 3…
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    color="primary"
+                    variant="flat"
+                    onClick={() =>
+                      setCourtNames(
+                        Array.from(
+                          new Array(Math.max(parseInt(courts) || 0, 0)),
+                          (_, i) => ((i + 1) * 2).toString()
+                        )
+                      )
+                    }
+                  >
+                    2, 4, 6…
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    color="secondary"
+                    variant="flat"
+                    onClick={() =>
+                      setCourtNames(
+                        Array.from(
+                          new Array(Math.max(parseInt(courts) || 0, 0)),
+                          (_, i) => ((i + 1) * 2 - 1).toString()
+                        )
+                      )
+                    }
+                  >
+                    1, 3, 5…
                   </Button>
                 </div>
                 {/* list-inside was causing wrapping with input, hack using ml. */}
                 <ol className="list-disc ml-5">
                   {Array.from(
                     new Array(Math.max(parseInt(courts) || 0, 0)),
-                    (_, i) => courtNames[i] || (i + 1).toString()
+                    (_, i) => courtNames[i]
                   ).map((courtName, index, allNames) => {
                     const duplicationError =
                       courtNamesError &&
@@ -317,6 +333,7 @@ function NewGame() {
                         (name, j) =>
                           j < index && name.trim() === courtName.trim()
                       );
+                    const emptyCourtName = !courtName.trim();
                     return (
                       <li key={index} className="mt-2">
                         <Input
@@ -329,9 +346,11 @@ function NewGame() {
                             newNames[index] = name;
                             setCourtNames(newNames);
                           }}
-                          isInvalid={duplicationError}
+                          isInvalid={duplicationError || emptyCourtName}
                           errorMessage={
-                            duplicationError
+                            emptyCourtName
+                              ? "Please provide a court name"
+                              : duplicationError
                               ? "Duplicated court name"
                               : undefined
                           }

@@ -25,6 +25,7 @@ export function PlayersModal({
   onSubmit: (newPlayers: Player[], regenerate: boolean) => void;
 }) {
   const state = useShufflerState();
+  const [newPlayer, setNewPlayer] = useState("");
   const newPlayerRef = useRef<HTMLInputElement>(null);
   const [players, setPlayers] = useState<
     Array<Player & { delete: boolean; new: boolean }>
@@ -83,8 +84,7 @@ export function PlayersModal({
             name="new-player"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!newPlayerRef.current) return;
-              const playerName = newPlayerRef.current?.value?.trim();
+              const playerName = newPlayer.trim();
               // No empty input.
               if (!playerName) return;
               // No duplicate names.
@@ -94,7 +94,8 @@ export function PlayersModal({
                 { name: playerName, id: uuidv4(), delete: false, new: true },
                 ...players,
               ]);
-              newPlayerRef.current.value = "";
+              setNewPlayer("");
+              newPlayerRef.current?.focus();
             }}
           >
             <div className="flex gap-2 items-end">
@@ -105,6 +106,8 @@ export function PlayersModal({
                 placeholder="Enter player name"
                 color="primary"
                 className="flex-1"
+                value={newPlayer}
+                onChange={(e) => setNewPlayer(e.target.value)}
                 ref={newPlayerRef}
               />
               <Button
