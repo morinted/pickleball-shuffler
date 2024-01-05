@@ -1,11 +1,11 @@
 import {
   Button,
-  Checkbox,
   Input,
   Modal,
-  Row,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
   Spacer,
-  Text,
 } from "@nextui-org/react";
 import { useEffect, useState } from "react";
 import { Home } from "react-iconly";
@@ -31,29 +31,23 @@ export function CourtsModal({
 
   return (
     <Modal
-      scroll
       closeButton
       aria-labelledby="courts-modal-title"
-      open={open}
+      isOpen={open}
       onClose={() => {
         onClose();
       }}
     >
-      <Modal.Header>
-        <Text id="courts-modal-title" h3>
-          Edit courts
-        </Text>
-      </Modal.Header>
-      <Modal.Body>
+      <ModalHeader>
+        <h3 id="courts-modal-title">Edit courts</h3>
+      </ModalHeader>
+      <ModalBody>
         <label>
-          <Row align="center">
+          <div className="flex items-center">
             <Court />
-            <Spacer x={0.25} inline />
-            <Text id="courts-label" size="$lg">
-              How many courts are available now?
-            </Text>
-          </Row>
-          <Spacer y={0.5} />
+            <p id="courts-label">How many courts are available now?</p>
+          </div>
+          <Spacer y={1} />
           <Input
             id="court-input"
             aria-labelledby="courts-label"
@@ -64,26 +58,21 @@ export function CourtsModal({
             fullWidth
           />
         </label>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button auto flat onPress={onClose}>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="flat" onPress={onClose}>
           Close
         </Button>
-        <Button
-          auto
-          onPress={() => onSubmit(parseInt(courts), true)}
-          color="error"
-        >
+        <Button onPress={() => onSubmit(parseInt(courts), true)} color="danger">
           Redo round
         </Button>
         <Button
-          auto
           onPress={() => onSubmit(parseInt(courts), false)}
-          color="gradient"
+          className="bg-gradient-to-l from-blue-600 to-pink-600 text-white"
         >
           New round
         </Button>
-      </Modal.Footer>
+      </ModalFooter>
     </Modal>
   );
 }
