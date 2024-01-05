@@ -11,7 +11,7 @@ export function PlayerBadge({
   return (
     <p
       className={clsx(
-        "border-2 font-semibold text-lg sm:text-medium my-2",
+        "border-2 font-semibold text-lg sm:text-medium",
         `text-${color} border-${color} rounded-lg px-2 py-1`,
         {
           "bg-slate-100": color === "default",

@@ -142,7 +142,7 @@ export default function Rounds() {
             <Card className="h-full bg-slate-200">
               <CardBody>
                 <div className="flex justify-between content-center">
-                  <h4 className="text-lg font-semibold">Sitting out</h4>
+                  <h4 className="text-lg font-semibold mb-4">Sitting out</h4>
                   <Button
                     className="-mt-1"
                     variant="flat"
@@ -187,16 +187,16 @@ export default function Rounds() {
               >
                 <Card>
                   <CardBody>
-                    <h4 className="text-lg font-semibold">
+                    <h4 className="text-lg font-semibold mb-2">
                       Court {state.courtNames[index] || index + 1}
                     </h4>
                     <div className="text-center">
                       <TeamBadges team={teamA.map(playerName).sort()} isHome />
-                      <Spacer y={1} />
-
-                      <div className="my-2 relative w-full border-b-1 before:px-4 before:-mx-6 before:bg-white before:-translate-y-1/2 before:font-bold before:absolute before:content-['vs']"></div>
-                      <Spacer y={1} />
+                      <Spacer y={5} />
+                      <div className="relative w-full border-b-1 before:px-4 before:-mx-6 before:bg-white before:-translate-y-1/2 before:font-bold before:absolute before:content-['vs']"></div>
+                      <Spacer y={5} />
                       <TeamBadges team={teamB.map(playerName).sort()} />
+                      <Spacer y={1} />
                     </div>
                   </CardBody>
                 </Card>
