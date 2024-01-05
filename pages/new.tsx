@@ -1,4 +1,11 @@
-import { Button, Input, Spacer, Switch, Textarea } from "@nextui-org/react";
+import {
+  Button,
+  ButtonGroup,
+  Input,
+  Spacer,
+  Switch,
+  Textarea,
+} from "@nextui-org/react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { Fragment, useEffect, useRef, useState } from "react";
@@ -271,55 +278,57 @@ function NewGame() {
             {customizeCourtNames && (
               <>
                 <div className="flex gap-2 items-center">
-                  <p className="text-primary font-semibold">Quick set:</p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    color="secondary"
-                    variant="flat"
-                    onClick={() =>
-                      setCourtNames(
-                        Array.from(
-                          new Array(Math.max(parseInt(courts) || 0, 0)),
-                          (_, i) => (i + 1).toString()
+                  <p className="text-primary font-semibold">Quick set</p>
+                  <ButtonGroup>
+                    <Button
+                      type="button"
+                      size="sm"
+                      color="secondary"
+                      variant="flat"
+                      onClick={() =>
+                        setCourtNames(
+                          Array.from(
+                            new Array(Math.max(parseInt(courts) || 0, 0)),
+                            (_, i) => (i + 1).toString()
+                          )
                         )
-                      )
-                    }
-                  >
-                    1, 2, 3…
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    color="primary"
-                    variant="flat"
-                    onClick={() =>
-                      setCourtNames(
-                        Array.from(
-                          new Array(Math.max(parseInt(courts) || 0, 0)),
-                          (_, i) => ((i + 1) * 2).toString()
+                      }
+                    >
+                      1, 2, 3, 4…
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      color="primary"
+                      variant="flat"
+                      onClick={() =>
+                        setCourtNames(
+                          Array.from(
+                            new Array(Math.max(parseInt(courts) || 0, 0)),
+                            (_, i) => ((i + 1) * 2).toString()
+                          )
                         )
-                      )
-                    }
-                  >
-                    2, 4, 6…
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    color="secondary"
-                    variant="flat"
-                    onClick={() =>
-                      setCourtNames(
-                        Array.from(
-                          new Array(Math.max(parseInt(courts) || 0, 0)),
-                          (_, i) => ((i + 1) * 2 - 1).toString()
+                      }
+                    >
+                      2, 4, 6, 8…
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      color="secondary"
+                      variant="flat"
+                      onClick={() =>
+                        setCourtNames(
+                          Array.from(
+                            new Array(Math.max(parseInt(courts) || 0, 0)),
+                            (_, i) => ((i + 1) * 2 - 1).toString()
+                          )
                         )
-                      )
-                    }
-                  >
-                    1, 3, 5…
-                  </Button>
+                      }
+                    >
+                      1, 3, 5, 7…
+                    </Button>
+                  </ButtonGroup>
                 </div>
                 {/* list-inside was causing wrapping with input, hack using ml. */}
                 <ol className="list-disc ml-5">
@@ -333,7 +342,7 @@ function NewGame() {
                         (name, j) =>
                           j < index && name.trim() === courtName.trim()
                       );
-                    const emptyCourtName = !courtName.trim();
+                    const emptyCourtName = courtNamesError && !courtName.trim();
                     return (
                       <li key={index} className="mt-2">
                         <Input
