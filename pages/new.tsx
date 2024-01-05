@@ -325,7 +325,7 @@ function NewGame() {
                 <ol className="list-disc ml-5">
                   {Array.from(
                     new Array(Math.max(parseInt(courts) || 0, 0)),
-                    (_, i) => courtNames[i]
+                    (_, i) => courtNames[i] || ""
                   ).map((courtName, index, allNames) => {
                     const duplicationError =
                       courtNamesError &&
