@@ -125,7 +125,7 @@ function NewGame() {
         />
         <div className="flex justify-center items-center">
           <div className="flex flex-1 flex-col gap-2">
-            <label>
+            <div>
               <div className="flex items-center gap-2">
                 <People />
                 <span id="players-label">
@@ -147,6 +147,7 @@ function NewGame() {
               <Spacer y={2} />
               <div className="flex items-end gap-2">
                 <Textarea
+                  name="add-players"
                   className="flex-1"
                   ref={playerInputRef}
                   autoFocus
@@ -220,7 +221,7 @@ function NewGame() {
                   </div>
                 </Fragment>
               ))}
-            </label>
+            </div>
             <Spacer y={3} />
             <label>
               <div className="flex items-center gap-2">
