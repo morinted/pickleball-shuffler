@@ -64,6 +64,7 @@ export default function Rounds() {
       </Head>
       <section className="container mx-auto">
         <SitoutsModal
+          key={roundIndex}
           open={sitoutModal}
           onClose={() => setSitoutModal(false)}
           onSubmit={async (volunteerSitouts) => {
