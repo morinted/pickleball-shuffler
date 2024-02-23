@@ -241,6 +241,7 @@ function shufflerReducer(state: State, action: Action): State {
         ...state,
         generating: true,
         rounds: regenerate ? state.rounds.slice(0, -1) : state.rounds,
+        useGroups: action.payload.useGroups ?? state.useGroups,
         volunteerSitoutsByRound: regenerate
           ? state.volunteerSitoutsByRound.slice(0, -1)
           : state.volunteerSitoutsByRound,
