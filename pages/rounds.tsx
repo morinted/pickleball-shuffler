@@ -82,6 +82,7 @@ export default function Rounds() {
             await editPlayers(dispatch, state, worker, {
               newPlayers,
               regenerate,
+              groups: [],
             });
             if (!regenerate && roundIndex) setRoundIndex((index) => index + 1);
             setPlayersModal(false);
@@ -222,6 +223,7 @@ export default function Rounds() {
             onPress={async () => {
               await newRound(dispatch, state, worker, {
                 volunteerSitouts: [],
+                useGroups: false,
               });
               setRoundIndex(state.rounds.length);
               window.scrollTo(0, 0);
@@ -229,6 +231,20 @@ export default function Rounds() {
             className="bg-gradient-to-l from-blue-600 to-pink-600 text-white"
           >
             Start round {state.rounds.length + 1}!
+          </Button>
+          <Button
+            size="lg"
+            onPress={async () => {
+              await newRound(dispatch, state, worker, {
+                volunteerSitouts: [],
+                useGroups: true,
+              });
+              setRoundIndex(state.rounds.length);
+              window.scrollTo(0, 0);
+            }}
+            className="bg-gradient-to-l from-blue-600 to-pink-600 text-white"
+          >
+            Start grouped round {state.rounds.length + 1}!
           </Button>
         </div>
         <Spacer y={2} />

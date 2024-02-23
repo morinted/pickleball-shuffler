@@ -33,6 +33,32 @@ function NewGame() {
   const playerInputRef = useRef<HTMLTextAreaElement>(null);
 
   const [players, setPlayers] = useState<string[]>(state.players);
+  const [groups, setGroups] = useState<{ name: string; index: number }[]>([]);
+
+  const handleGroupUp = (group: { name: string; index: number }) => {
+    const targetIndex = Math.max(
+      group.index >= players.length ? players.length - 1 : group.index - 1,
+      0
+    );
+    setGroups((groups) =>
+      groups
+        .filter((g) => g.name !== group.name)
+        .concat([{ name: group.name, index: targetIndex }])
+    );
+  };
+  const handleGroupDown = (group: { name: string; index: number }) => {
+    const targetIndex = Math.min(group.index + 1, players.length);
+    setGroups((groups) =>
+      groups
+        .filter((g) => g.name !== group.name)
+        .concat([{ name: group.name, index: targetIndex }])
+    );
+  };
+
+  const handleGroupDelete = (group: { name: string; index: number }) => {
+    setGroups((groups) => groups.filter((g) => g.name !== group.name));
+  };
+
   const [courts, setCourts] = useState(state.courts.toString());
   const [customizeCourtNames, setCustomizeCourtNames] = useState(false);
   const [courtNames, setCourtNames] = useState<string[]>([]);
@@ -85,10 +111,31 @@ function NewGame() {
       setFormStatus("validating");
       return;
     }
+    const sortedGroups = groups.sort((a, b) => a.index - b.index);
+    const targetGroups = sortedGroups.flatMap(({ name, index }, id) => {
+      // If first group isn't at the top of the list, move it there.
+      index = id === 0 ? 0 : index;
+
+      // Get end index, or end of the list.
+      const nextGroupIndex = sortedGroups[id + 1]?.index || players.length;
+
+      const selectedPlayers = names.slice(index, nextGroupIndex);
+
+      if (!selectedPlayers.length) return [];
+
+      return [
+        {
+          name,
+          playerNames: selectedPlayers,
+        },
+      ];
+    });
     await newGame(dispatch, state, worker, {
       names,
       courts: courtCount,
       courtNames: customizeCourtNames ? courtNames : [],
+      groups: targetGroups,
+      useGroups: !!targetGroups.length,
     });
     router.push("/rounds");
   };
@@ -105,6 +152,55 @@ function NewGame() {
     formStatus === "validating" &&
     (courtNames.some((x) => !x.trim()) ||
       new Set(courtNames.map((x) => x.trim())).size !== courtNames.length);
+
+  const Group = ({
+    onUp,
+    onDown,
+    onDelete,
+    children,
+  }: {
+    onUp: () => void;
+    onDown: () => void;
+    onDelete: () => void;
+    children: React.ReactNode;
+  }) => {
+    return (
+      <div className="flex items-end gap-2 border-b-2 pb-1">
+        <span className="text-md text-primary-600">Group: {children}</span>
+        <span className="flex-grow" />
+        <Button
+          variant="ghost"
+          color="default"
+          size="sm"
+          aria-label={`Up group`}
+          isIconOnly
+          onPress={onUp}
+        >
+          ↑
+        </Button>
+        <Button
+          variant="ghost"
+          color="default"
+          size="sm"
+          aria-label={`Up group`}
+          isIconOnly
+          onPress={onDown}
+        >
+          ↓
+        </Button>
+        <Button
+          variant="ghost"
+          color="default"
+          size="sm"
+          aria-label={`Remove group`}
+          isIconOnly
+          onPress={onDelete}
+        >
+          <Delete />
+        </Button>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -181,6 +277,22 @@ function NewGame() {
               <Spacer y={2} />
               {players.map((name, index) => (
                 <Fragment key={index}>
+                  {groups
+                    .reduce<{ index: number; name: string }[]>(
+                      (result, group) =>
+                        group.index === index ? [...result, group] : result,
+                      []
+                    )
+                    .map((group) => (
+                      <Group
+                        key={group.name}
+                        onUp={() => handleGroupUp(group)}
+                        onDown={() => handleGroupDown(group)}
+                        onDelete={() => handleGroupDelete(group)}
+                      >
+                        {group.name}
+                      </Group>
+                    ))}
                   <div className="flex items-center gap-1">
                     <User primaryColor="#888" size="medium" />
                     <span className="text-sm text-gray-500 w-4">
@@ -222,6 +334,42 @@ function NewGame() {
                 </Fragment>
               ))}
             </div>
+            {groups
+              .reduce<{ index: number; name: string }[]>(
+                (result, group) =>
+                  group.index >= players.length ? [...result, group] : result,
+                []
+              )
+              .map((group) => (
+                <Group
+                  key={group.name}
+                  onUp={() => handleGroupUp(group)}
+                  onDown={() => handleGroupDown(group)}
+                  onDelete={() => handleGroupDelete(group)}
+                >
+                  {group.name}
+                </Group>
+              ))}
+            <Button
+              onPress={() => {
+                if (!groups?.length) {
+                  setGroups([
+                    { name: "1", index: 0 },
+                    { name: "2", index: players.length },
+                  ]);
+                } else {
+                  setGroups([
+                    ...groups,
+                    {
+                      name: (groups.length + 1).toString(),
+                      index: players.length,
+                    },
+                  ]);
+                }
+              }}
+            >
+              Add a group
+            </Button>
             <Spacer y={3} />
             <label>
               <div className="flex items-center gap-2">
