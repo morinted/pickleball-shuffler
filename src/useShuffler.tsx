@@ -5,12 +5,26 @@ import { v4 as uuidv4 } from "uuid";
 type NewRoundOptions = {
   volunteerSitouts: PlayerId[];
   regenerate?: boolean;
+  useGroups?: boolean;
   players?: PlayerId[];
   playersById?: Record<PlayerId, Player>;
 };
 
+type GroupName = {
+  name: string;
+  playerNames: string[];
+};
+
+type Group = {
+  name: string;
+  id: number;
+  players: PlayerId[];
+};
+
 type NewGameOptions = {
   names: string[];
+  groups: GroupName[];
+  useGroups: boolean;
   courts: number;
   courtNames: string[];
 };
@@ -21,6 +35,7 @@ type EditCourts = {
 };
 type EditPlayers = {
   newPlayers: Player[];
+  groups: Group[];
   regenerate: boolean;
 };
 
@@ -36,6 +51,8 @@ type Action =
         playersById: Record<PlayerId, Player>;
         courts: number;
         courtNames: string[];
+        groups: Group[];
+        useGroups: boolean;
       };
     }
   | {
@@ -70,6 +87,8 @@ type State = {
   courtNames: string[];
   volunteerSitoutsByRound: PlayerId[][];
   playersById: Record<PlayerId, Player>;
+  groups: Group[];
+  useGroups: boolean;
   generating: boolean;
   cacheLoaded: boolean;
 };
@@ -80,7 +99,9 @@ const defaultState: State = {
   volunteerSitoutsByRound: [],
   playersById: {},
   rounds: [],
+  groups: [],
   courts: 2,
+  useGroups: false,
   courtNames: [],
   generating: false,
   cacheLoaded: false,
@@ -123,6 +144,8 @@ function loadFromCache(previousState: State): State {
       volunteerSitoutsByRound,
       playersById,
       courtNames = [],
+      groups = [],
+      useGroups = false,
     } = JSON.parse(storageState);
     if (
       !Array.isArray(players) ||
@@ -139,6 +162,8 @@ function loadFromCache(previousState: State): State {
       rounds,
       courts,
       courtNames,
+      groups,
+      useGroups,
       cacheLoaded: true,
       generating: false,
     };
@@ -157,6 +182,8 @@ function cacheState(state: State): State {
       rounds,
       volunteerSitoutsByRound,
       playersById,
+      groups,
+      useGroups,
     } = state;
     window.localStorage.setItem(
       "state",
@@ -167,6 +194,8 @@ function cacheState(state: State): State {
         rounds,
         volunteerSitoutsByRound,
         playersById,
+        groups,
+        useGroups,
       })
     );
   }, 0);
@@ -177,7 +206,8 @@ function shufflerReducer(state: State, action: Action): State {
   switch (action.type) {
     case "new-game-start": {
       const { payload } = action;
-      const { players, playersById, courts, courtNames } = payload;
+      const { players, playersById, courts, courtNames, groups, useGroups } =
+        payload;
 
       return cacheState({
         ...state,
@@ -185,6 +215,8 @@ function shufflerReducer(state: State, action: Action): State {
         playersById,
         courts,
         courtNames,
+        groups,
+        useGroups,
         rounds: [],
         volunteerSitoutsByRound: [],
         generating: true,
@@ -242,14 +274,25 @@ async function newRound(
   dispatch({ type: "start-generation", payload });
   const rounds = payload.regenerate ? state.rounds.slice(0, -1) : state.rounds;
 
+  const useGroups = payload.useGroups ?? state.useGroups;
+
   try {
-    const nextRound = await generateRound(
-      worker,
-      rounds,
-      state.players,
-      state.courts,
-      payload.volunteerSitouts
-    );
+    const nextRound = useGroups
+      ? await generateGroupedRounds(
+          worker,
+          rounds,
+          state.players,
+          state.groups,
+          state.courts,
+          payload.volunteerSitouts
+        )
+      : await generateRound(
+          worker,
+          rounds,
+          state.players,
+          state.courts,
+          payload.volunteerSitouts
+        );
     dispatch({
       type: "new-round",
       payload: { round: nextRound, volunteerSitouts: payload.volunteerSitouts },
@@ -267,10 +310,19 @@ async function newGame(
 ) {
   if (!worker) return;
   if (state.generating) return;
-  const { courts, names, courtNames } = payload;
+  const { courts, names, courtNames, groups, useGroups } = payload;
   const players = createPlayers(names).sort((a, b) =>
     a.name.localeCompare(b.name)
   );
+  const mappedGroups = groups.map<Group>((group, index) => {
+    return {
+      name: group.name,
+      id: index,
+      players: group.playerNames.map(
+        (name) => players.find((p) => p.name === name)?.id || ""
+      ),
+    };
+  });
   const playerIds = players.map(({ id }) => id);
   const playersById = getPlayersById({}, players);
   dispatch({
@@ -280,14 +332,87 @@ async function newGame(
       playersById,
       courts,
       courtNames,
+      groups: mappedGroups,
+      useGroups,
     },
   });
   try {
-    const nextRound = await generateRound(worker, [], playerIds, courts, []);
+    const nextRound = useGroups
+      ? await generateGroupedRounds(
+          worker,
+          [],
+          playerIds,
+          mappedGroups,
+          courts,
+          []
+        )
+      : await generateRound(worker, [], playerIds, courts, []);
     dispatch({ type: "new-game", payload: nextRound });
   } catch (error) {
     dispatch({ type: "new-game-fail", payload: { error: error as Error } });
   }
+}
+
+async function generateGroupedRounds(
+  worker: Worker,
+  rounds: Round[],
+  playerIds: PlayerId[],
+  groups: Group[],
+  courts: number,
+  volunteerSitouts: PlayerId[]
+): Promise<Round> {
+  // Apply sit outs globally to avoid a modulus 4 group never having sit outs.
+  const { sitOuts } = await generateRound(
+    worker,
+    rounds,
+    playerIds,
+    courts,
+    volunteerSitouts
+  );
+
+  // Split players into groups.
+  console.log(groups);
+  const playerGroups = groups.map((group) =>
+    group.players.filter((player) => !sitOuts.includes(player))
+  );
+
+  console.log(playerGroups);
+
+  // Generate rounds for each group.
+  const homogeneousRounds = [];
+  for (const groupPlayerIds of playerGroups) {
+    const newRound = await generateRound(
+      worker,
+      rounds,
+      groupPlayerIds,
+      Math.floor(groupPlayerIds.length / 4),
+      []
+    );
+    homogeneousRounds.push(newRound);
+  }
+
+  // Combine sit outs to form last courts.
+  const mixedGroup = homogeneousRounds.reduce<PlayerId[]>((result, current) => {
+    return [...result, ...current.sitOuts];
+  }, []);
+
+  const mixedRound = await generateRound(
+    worker,
+    rounds,
+    mixedGroup,
+    Math.floor(mixedGroup.length / 4),
+    []
+  );
+
+  console.log(sitOuts, homogeneousRounds, mixedGroup, mixedRound);
+
+  return {
+    sitOuts,
+    matches: [
+      ...homogeneousRounds.flatMap((round) => round.matches),
+      ...mixedRound.matches,
+    ],
+  };
 }
 
 async function generateRound(
